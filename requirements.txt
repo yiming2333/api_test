@@ -1,14 +1,5 @@
-# === 核心测试依赖 ===
-requests==2.31.0        # HTTP 请求
-pytest==7.4.4           # 测试框架
-allure-pytest==2.13.2   # Allure 报告集成
-PyYAML==6.0.1           # YAML 配置读取
-
-# === 推荐补充 ===
-jsonpath>=0.82          # JSON 路径提取 (防止你手写解析器有 bug)
-pytest-html>=4.0.0      # HTML 备用报告 (Allure 挂了的救命稻草)
-pytest-ordering>=0.6    # 用例执行顺序控制 (后续肯定用得上)
-
-# === ⛔ 不要加 ===
-# flask                 # 这是服务端依赖，不属于测试执行环境
-# pytest-xdist          # 并发执行，初期别加，容易踩坑
+requests==2.31.0       
+pytest==7.4.4          
+allure-pytest==2.13.2  
+PyYAML==6.0.1          
+pytest-html>=4.0.0     

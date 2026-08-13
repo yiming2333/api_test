@@ -23,7 +23,10 @@ pipeline {
         stage('2. 安装依赖') {
             steps {
                 echo "正在安装 Python 依赖..."
-                bat "${PYTHON_PATH} -m pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple"
+                 bat """
+                    chcp 65001
+                    ${PYTHON_PATH} -m pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
+                """
             }
         }
 
