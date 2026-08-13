@@ -14,6 +14,9 @@ pipeline {
 
     stages {
         stage('1. 拉取代码') {
+            options {
+                retry(3)  // ← 新增：GitHub 抽风自动重试
+            }
             steps {
                 echo "正在从 Git 拉取代码..."
                 git branch: 'master', url: 'https://github.com/yiming2333/api_test.git'
@@ -23,7 +26,7 @@ pipeline {
         stage('2. 安装依赖') {
             steps {
                 echo "正在安装 Python 依赖..."
-                 bat """
+                bat """
                     chcp 65001
                     ${PYTHON_PATH} -m pip install -r requirements.txt -q -i https://pypi.tuna.tsinghua.edu.cn/simple
                 """
