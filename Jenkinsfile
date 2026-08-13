@@ -22,7 +22,7 @@ pipeline {
             steps {
                 echo "正在从 Git 拉取代码..."
                 // 请替换为你真实的 Git 仓库地址
-                git branch: 'main', url: 'https://gitee.com/your-name/api_test.git'
+                git branch: 'main', url: 'https://github.com/yiming2333/api_test.git'
             }
         }
 
