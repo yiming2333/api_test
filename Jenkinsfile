@@ -1,7 +1,6 @@
 pipeline {
     agent any
 
-    // 1. 参数化构建
     parameters {
         choice(name: 'ENV', choices: ['dev', 'prod'], description: '选择运行环境')
         choice(name: 'MARK', choices: ['all', 'smoke', 'regression'], description: '选择用例标记')
@@ -47,23 +46,29 @@ pipeline {
         stage('4. 生成 Allure 报告') {
             steps {
                 echo "正在生成 Allure 测试报告..."
-                allure commandline: 'allure',
-                       properties: [],
-                       results: [[path: "${ALLURE_RESULTS}"]]
+                bat "allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean"
+                publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: "${ALLURE_REPORT}",
+                    reportFiles: 'index.html',
+                    reportName: 'Allure Report'
+                ])
             }
         }
     }
 
     post {
         always {
-            echo "流水线执行结束，清理工作..."
+            echo "流水线执行结束"
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
         }
         success {
             echo "✅ 恭喜！所有测试用例通过！"
         }
         failure {
-            echo "❌ 警告：存在失败的测试用例，请查看 Allure 报告详情。"
+            echo "❌ 存在失败的测试用例，请查看 Allure 报告。"
         }
     }
 }
