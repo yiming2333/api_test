@@ -10,7 +10,7 @@ pipeline {
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
         ALLURE_RESULTS = 'reports/allure-results'
         ALLURE_REPORT   = 'reports/allure-report'
-        PYTHONIOENCODING = 'utf-8'   // 解决 Windows 控制台编码问题
+        PYTHONIOENCODING = 'utf-8'
     }
 
     stages {
@@ -53,15 +53,14 @@ pipeline {
         stage('4. 生成并发布 Allure 报告') {
             steps {
                 echo "正在生成 Allure 测试报告..."
-                // 使用命令行生成报告（确保 allure 命令在 PATH 中）
                 bat """
                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
                 """
-                // 通过 HTML Publisher 发布报告,,
+                // 通过 HTML Publisher 发布报告，使用英文名称避免 URL 编码
                 publishHTML([
                     reportDir: 'reports/allure-report',
                     reportFiles: 'index.html',
-                    reportName: 'Allure 测试报告',
+                    reportName: 'AllureReport',      // 改为英文，不含空格
                     allowMissing: true,
                     keepAll: false,
                     alwaysLinkToLastBuild: false
@@ -78,9 +77,8 @@ pipeline {
 
         success {
             echo "✅ 恭喜！所有测试用例通过！"
-            // 发送成功邮件（包含 Allure 报告链接）
             emailext (
-                to: 'yiming_2333@sina.com',   // 明确指定收件人
+                to: 'yiming_2333@sina.com',
                 subject: "✅ 测试通过 - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
                 body: """
                     <p>各位同事，大家好！</p>
@@ -89,23 +87,20 @@ pipeline {
                         <li>构建编号：<strong>#${env.BUILD_NUMBER}</strong></li>
                         <li>构建状态：<span style="color: green;">✅ SUCCESS</span></li>
                         <li>触发人：${env.BUILD_USER_ID ?: '未知'}</li>
-                        <li>测试报告：<a href="${env.BUILD_URL}allure/">${env.BUILD_URL}allure/</a></li>
+                        <li>测试报告：<a href="${env.BUILD_URL}AllureReport/">${env.BUILD_URL}AllureReport/</a></li>
                     </ul>
                     <p>请点击上方链接查看 Allure 测试报告详情。</p>
                     <hr/>
                     <p style="font-size: 12px; color: gray;">此邮件由 Jenkins 自动发送，请勿回复。</p>
                 """,
                 mimeType: 'text/html'
-                // 如果不指定 to，将使用系统配置中的默认收件人
-                // 如需指定多个收件人，可添加 to: 'user1@example.com, user2@example.com'
             )
         }
 
         failure {
             echo "❌ 存在失败的测试用例，请查看 Allure 报告。"
-            // 发送失败邮件（包含 Allure 报告链接）
             emailext (
-                to: 'yiming_2333@sina.com',   // 明确指定收件人
+                to: 'yiming_2333@sina.com',
                 subject: "❌ 测试失败 - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
                 body: """
                     <p>各位同事，大家好！</p>
@@ -114,7 +109,7 @@ pipeline {
                         <li>构建编号：<strong>#${env.BUILD_NUMBER}</strong></li>
                         <li>构建状态：<span style="color: red;">❌ FAILURE</span></li>
                         <li>触发人：${env.BUILD_USER_ID ?: '未知'}</li>
-                        <li>测试报告：<a href="${env.BUILD_URL}allure/">${env.BUILD_URL}allure/</a></li>
+                        <li>测试报告：<a href="${env.BUILD_URL}AllureReport/">${env.BUILD_URL}AllureReport/</a></li>
                     </ul>
                     <p>请点击上方链接查看 Allure 测试报告详情，并排查失败原因。</p>
                     <hr/>
