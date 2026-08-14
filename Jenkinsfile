@@ -54,7 +54,7 @@ pipeline {
             steps {
                 echo "正在生成 Allure 测试报告..."
                 // 使用 Allure 插件，只需要指定结果目录路径
-                allure results: [[path: 'reports/allure-results']]
+                allure 'reports/allure-results'
 //                 // 使用命令行生成报告（确保 allure 命令在 PATH 中）
 //                 bat """
 //                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
