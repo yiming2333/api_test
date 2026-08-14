@@ -35,33 +35,29 @@ pipeline {
 
         stage('3. 执行测试') {
             steps {
-                echo "开始执行 Pytest 测试..."
-                bat """
-                    ${PYTHON_PATH} -m pytest ^
-                        --env=${params.ENV} ^
-                        ${params.MARK != 'all' ? '-m ' + params.MARK : ''} ^
-                        --alluredir=${ALLURE_RESULTS} ^
-                        --clean-alluredir ^
-                        -v ^
+        echo "开始执行 Pytest 测试..."
+        script {
+            def markArg = params.MARK != 'all' ? "-m ${params.MARK}" : ""
+            bat """
+                ${PYTHON_PATH} -m pytest ${markArg} ^
+                    --env=${params.ENV} ^
+                    --alluredir=${ALLURE_RESULTS} ^
+                    --clean-alluredir ^
+                    -v ^
 
-                        || exit /b 0
-                """
-            }
+                    || exit /b 0
+            """
+        }
+    }
         }
 
         stage('4. 生成 Allure 报告') {
-            steps {
-                echo "正在生成 Allure 测试报告..."
-                bat "allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean"
-                publishHTML([
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: "${ALLURE_REPORT}",
-                    reportFiles: 'index.html',
-                    reportName: 'Allure Report'
-                ])
-            }
+           steps {
+        echo "正在生成 Allure 测试报告..."
+        allure includeProperties: false,
+               jdk: '',
+               results: [[path: "${ALLURE_RESULTS}"]]
+    }
         }
     }
 
