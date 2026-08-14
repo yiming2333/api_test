@@ -14,9 +14,7 @@ pipeline {
 
     stages {
         stage('1. 拉取代码') {
-            options {
-                retry(3)  // GitHub 抽风自动重试
-            }
+            options { retry(3) }
             steps {
                 echo "正在从 Git 拉取代码..."
                 git branch: 'master', url: 'https://github.com/yiming2333/api_test.git'
@@ -37,7 +35,7 @@ pipeline {
             steps {
                 echo "开始执行 Pytest 测试..."
                 script {
-                    // 使用 catchError 捕获测试失败，但继续执行后续 stage
+                    // 捕获测试失败，但继续生成报告
                     catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                         def markArg = params.MARK != 'all' ? "-m ${params.MARK}" : ""
                         bat """
@@ -55,12 +53,19 @@ pipeline {
         stage('4. 生成 Allure 报告') {
             steps {
                 echo "正在生成 Allure 测试报告..."
-                // 使用命令行生成报告（确保 allure 命令在 PATH 中或已配置工具）
+                // 使用命令行生成报告（确保 allure 命令可用）
                 bat """
                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
                 """
-                // 可选：将报告归档或发布为 HTML 报告
-                publishHTML([reportDir: 'reports/allure-report', reportFiles: 'index.html', reportName: 'Allure Report'])
+                // 发布 HTML 报告，补全所有必需参数
+                publishHTML([
+                    reportDir: 'reports/allure-report',
+                    reportFiles: 'index.html',
+                    reportName: 'Allure Report',
+                    allowMissing: true,
+                    keepAll: false,
+                    alwaysLinkToLastBuild: false
+                ])
             }
         }
     }
