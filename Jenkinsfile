@@ -53,19 +53,21 @@ pipeline {
         stage('4. 生成并发布 Allure 报告') {
             steps {
                 echo "正在生成 Allure 测试报告..."
-                // 使用命令行生成报告（确保 allure 命令在 PATH 中）
-                bat """
-                    allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
-                """
-                // 通过 HTML Publisher 发布报告
-                publishHTML([
-                    reportDir: 'reports/allure-report',
-                    reportFiles: 'index.html',
-                    reportName: 'Allure 测试报告',
-                    allowMissing: true,
-                    keepAll: false,
-                    alwaysLinkToLastBuild: false
-                ])
+                // 使用 Allure 插件，只需要指定结果目录路径
+                allure results: [[path: 'reports/allure-results']]
+//                 // 使用命令行生成报告（确保 allure 命令在 PATH 中）
+//                 bat """
+//                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
+//                 """
+//                 // 通过 HTML Publisher 发布报告
+//                 publishHTML([
+//                     reportDir: 'reports/allure-report',
+//                     reportFiles: 'index.html',
+//                     reportName: 'Allure 测试报告',
+//                     allowMissing: true,
+//                     keepAll: false,
+//                     alwaysLinkToLastBuild: false
+//                 ])
             }
         }
     }
