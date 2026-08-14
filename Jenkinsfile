@@ -57,7 +57,7 @@ pipeline {
                 bat """
                     allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
                 """
-                // 通过 HTML Publisher 发布报告
+                // 通过 HTML Publisher 发布报告...
                 publishHTML([
                     reportDir: 'reports/allure-report',
                     reportFiles: 'index.html',
