@@ -52,11 +52,10 @@ pipeline {
         }
 
         stage('4. 生成 Allure 报告') {
-           steps {
+        steps {
         echo "正在生成 Allure 测试报告..."
-        allure includeProperties: false,
-               jdk: '',
-               results: [[path: "${ALLURE_RESULTS}"]]
+        allure3 commandline: 'allure-2.43.0',
+                results: [[path: "${ALLURE_RESULTS}"]]
     }
         }
     }
