@@ -80,6 +80,7 @@ pipeline {
             echo "✅ 恭喜！所有测试用例通过！"
             // 发送成功邮件（包含 Allure 报告链接）
             emailext (
+                to: 'yiming_2333@sina.com',   // 明确指定收件人
                 subject: "✅ 测试通过 - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
                 body: """
                     <p>各位同事，大家好！</p>
@@ -104,6 +105,7 @@ pipeline {
             echo "❌ 存在失败的测试用例，请查看 Allure 报告。"
             // 发送失败邮件（包含 Allure 报告链接）
             emailext (
+                to: 'yiming_2333@sina.com',   // 明确指定收件人
                 subject: "❌ 测试失败 - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
                 body: """
                     <p>各位同事，大家好！</p>
