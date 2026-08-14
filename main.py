@@ -14,4 +14,8 @@ if __name__ == '__main__':
     print_hi('PyCharm')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
-# db52ce58371145a395db2e8911da915f
+# jenkins登录密码 db52ce58371145a395db2e8911da915f
+# ngrok 3Htcx1yOko8N71mLJ2QGGoPug11_3hB5cvP2pJjxZEDda6VHj
+# https://unsolved-automated-entertain.ngrok-free.dev
+# github123
+# https://unsolved-automated-entertain.ngrok-free.dev/job/api_test/build?token=github123
