@@ -10,6 +10,7 @@ pipeline {
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
         ALLURE_RESULTS = 'reports/allure-results'
         ALLURE_REPORT   = 'reports/allure-report'
+        PYTHONIOENCODING = 'utf-8'   // 全局解决编码问题
     }
 
     stages {
@@ -35,7 +36,6 @@ pipeline {
             steps {
                 echo "开始执行 Pytest 测试..."
                 script {
-                    // 捕获测试失败，但继续生成报告
                     catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                         def markArg = params.MARK != 'all' ? "-m ${params.MARK}" : ""
                         bat """
@@ -50,22 +50,11 @@ pipeline {
             }
         }
 
-        stage('4. 生成 Allure 报告') {
+        stage('4. 生成并发布 Allure 报告') {
             steps {
-                echo "正在生成 Allure 测试报告..."
-                // 使用命令行生成报告（确保 allure 命令可用）
-                bat """
-                    allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT} --clean
-                """
-                // 发布 HTML 报告，补全所有必需参数
-                publishHTML([
-                    reportDir: 'reports/allure-report',
-                    reportFiles: 'index.html',
-                    reportName: 'Allure Report',
-                    allowMissing: true,
-                    keepAll: false,
-                    alwaysLinkToLastBuild: false
-                ])
+                echo "正在生成并发布 Allure 测试报告..."
+                // 使用 Allure 插件自动生成报告并发布到 Jenkins UI
+                allure includeProperties: false, jdk: '', results: [[path: 'reports/allure-results']]
             }
         }
     }
