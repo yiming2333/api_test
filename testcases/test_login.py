@@ -4,7 +4,6 @@ from utils.data_loader import load_test_data
 from utils.jsonpath_util import extract_json
 
 # 加载 YAML 数据
-# 6666
 LOGIN_DATA = load_test_data("login.yaml", "test_login")
 
 @allure.epic("用户中心")
