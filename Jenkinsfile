@@ -4,7 +4,6 @@ pipeline {
     options {
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
-        // 可选：自动丢弃旧构建，只保留最近 30 次，防止 keepAll=true 撑爆磁盘
         buildDiscarder(logRotator(numToKeepStr: '30'))
     }
 
@@ -17,13 +16,22 @@ pipeline {
         // ========== 系统路径 ==========
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
 
-        // ========== 【新增】pip 依赖源（已提取为环境变量）==========
+        // ========== Allure 命令完整路径（不依赖 PATH）==========
+        // ⚠️ 改成你实际的 allure.bat 路径
+        ALLURE_CMD = 'C:/Users/27088/AppData/Roaming/npm/node_modules/allure-commandline/dist/bin/allure.bat'
+
+        // ========== pip 依赖源 ==========
         PIP_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple'
 
         // ========== Allure 报告相关 ==========
         ALLURE_RESULTS = 'reports/allure-results'
         ALLURE_REPORT_DIR = 'reports/allure-report'
         ALLURE_REPORT_NAME = 'AllureReport'
+
+        // ========== 【关键】History 固定存储目录 ==========
+        // 这个目录不在 workspace 里，不会被 cleanWorkspace 清掉
+        // 用 JOB_NAME 区分不同任务，防止多任务互相覆盖
+        ALLURE_HISTORY_DIR = "C:/work/yss/allure-history/${env.JOB_NAME}"
 
         // ========== 邮件配置 ==========
         MAIL_RECIPIENT = 'yiming_2333@sina.com'
@@ -36,22 +44,20 @@ pipeline {
         GIT_BRANCH = 'master'
         GIT_CREDENTIALS_ID = ''
 
-        // ========== 报告链接（严格按你的格式，不改动）==========
+        // ========== 报告链接 ==========
         REPORT_LINK = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${env.ALLURE_REPORT_NAME}/"
     }
 
     stages {
-        // ========== 【新增】获取触发人（需先安装 Build User Vars Plugin）==========
         stage('0. 获取构建用户') {
             steps {
                 script {
                     try {
                         wrap([$class: 'BuildUser']) {
-                            // 把触发人存到全局环境变量，供 post 使用
                             env.TRIGGER_USER = env.BUILD_USER_ID ?: '未知(插件未生效)'
                         }
                     } catch (e) {
-                        echo "⚠️ 无法获取构建用户(请确认已安装 Build User Vars Plugin): ${e.message}"
+                        echo "⚠️ 无法获取构建用户: ${e.message}"
                         env.TRIGGER_USER = '未知'
                     }
                     echo "本次构建触发人: ${env.TRIGGER_USER}"
@@ -102,26 +108,58 @@ pipeline {
             }
         }
 
+        // ================================================================
+        //  stage 4：生成 Allure 报告 + Trend（完善版）
+        // ================================================================
         stage('4. 生成并发布 Allure 报告') {
             steps {
-                echo "正在生成 Allure 测试报告..."
                 script {
+                    // ---------- Step 1: 确保 history 固定目录存在 ----------
+                    bat """
+                        if not exist "${ALLURE_HISTORY_DIR}" mkdir "${ALLURE_HISTORY_DIR}"
+                    """
+
+                    // ---------- Step 2: 从固定目录拷贝 history 到本次 results ----------
+                    if (fileExists("${ALLURE_HISTORY_DIR}/history.json")) {
+                        echo "✅ 找到历史 Trend 数据，正在注入..."
+                        bat """
+                            chcp 65001
+                            if not exist "${ALLURE_RESULTS}\\history" mkdir "${ALLURE_RESULTS}\\history"
+                            xcopy /E /I /Y "${ALLURE_HISTORY_DIR}\\*" "${ALLURE_RESULTS}\\history\\" >nul
+                        """
+                    } else {
+                        echo "ℹ️ 首次构建或无历史数据，跳过 history 注入"
+                    }
+
+                    // ---------- Step 3: 生成报告（写死 allure 路径，不依赖 PATH）----------
                     try {
                         bat """
                             chcp 65001
-                            allure generate ${ALLURE_RESULTS} -o ${ALLURE_REPORT_DIR} --clean
+                            "${ALLURE_CMD}" generate "${ALLURE_RESULTS}" -o "${ALLURE_REPORT_DIR}" --clean
                         """
+                        echo "✅ Allure 报告生成成功"
                     } catch (e) {
-                        echo "⚠️ Allure 报告生成异常: ${e.message}"
+                        echo "❌ Allure 报告生成失败: ${e.message}"
+                        // 不 raise，让 pipeline 继续走到 publishHTML
+                    }
+
+                    // ---------- Step 4: 把新生成的 history 拷回固定目录（供下次使用）----------
+                    if (fileExists("${ALLURE_REPORT_DIR}/history")) {
+                        bat """
+                            chcp 65001
+                            xcopy /E /I /Y "${ALLURE_REPORT_DIR}\\history\\*" "${ALLURE_HISTORY_DIR}\\" >nul
+                        """
+                        echo "✅ History 已同步到固定目录: ${ALLURE_HISTORY_DIR}"
                     }
                 }
 
+                // ---------- Step 5: 发布 HTML 报告 ----------
                 publishHTML([
                     reportDir: env.ALLURE_REPORT_DIR,
                     reportFiles: 'index.html',
                     reportName: env.ALLURE_REPORT_NAME,
                     allowMissing: true,
-                    keepAll: true,              // 🔴 改为 true！保留所有历史构建报告
+                    keepAll: true,
                     alwaysLinkToLastBuild: false
                 ])
             }
@@ -131,7 +169,9 @@ pipeline {
     post {
         always {
             echo "流水线执行结束"
+            // 归档日志 + history（双保险）
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'reports/allure-report/history/**', allowEmptyArchive: true
         }
 
         success {
@@ -146,7 +186,7 @@ pipeline {
     }
 }
 
-// ========== 邮件发送函数 ==========
+// ========== 邮件发送函数（不变）==========
 def sendEmailNotification(String status, String color, String icon) {
     emailext (
         to: env.MAIL_RECIPIENT,
