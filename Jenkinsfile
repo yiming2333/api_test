@@ -13,29 +13,16 @@ pipeline {
     }
 
     environment {
-        // ========== 系统路径 ==========
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
-
-        // ========== pip 依赖源 ==========
         PIP_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple'
-
-        // ========== Allure 报告相关 ==========
         ALLURE_RESULTS = 'reports/allure-results'
         ALLURE_REPORT_DIR = 'reports/allure-report'
         ALLURE_REPORT_NAME = 'AllureReport'
-
-        // ========== 邮件配置 ==========
         MAIL_RECIPIENT = 'yiming_2333@sina.com'
-
-        // ========== 编码设置 ==========
         PYTHONIOENCODING = 'utf-8'
-
-        // ========== Git 配置 ==========
         GIT_URL = 'https://github.com/yiming2333/api_test.git'
         GIT_BRANCH = 'master'
         GIT_CREDENTIALS_ID = ''
-
-        // ========== 报告链接 ==========
         REPORT_LINK = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${env.ALLURE_REPORT_NAME}/"
     }
 
@@ -99,13 +86,9 @@ pipeline {
             }
         }
 
-        // ================================================================
-        //  stage 3.5：写入 Allure Environment + Executor 元数据
-        // ================================================================
         stage('3.5 写入 Allure 环境 & 执行器信息') {
             steps {
                 script {
-                    // ---------- 1. environment.properties ----------
                     def envProps = """
                         Environment=${params.ENV}
                         Python.Version=3.10
@@ -119,7 +102,6 @@ pipeline {
                     writeFile file: "${ALLURE_RESULTS}/environment.properties", text: envProps, encoding: 'UTF-8'
                     echo "✅ environment.properties 已写入"
 
-                    // ---------- 2. executor.json（手动写入，保证显示构建信息）----------
                     def reportUrl = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
                     def buildUrl  = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/"
                     def jsonStr   = """{
@@ -138,32 +120,28 @@ pipeline {
             }
         }
 
-        // ================================================================
-        //  stage 4：使用 Allure Jenkins Plugin 自动生成报告 + 处理趋势
-        // ================================================================
         stage('4. 生成并发布 Allure 报告') {
             steps {
                 script {
-                    // 使用 allure 步骤，插件会自动：
-                    // 1. 从历史构建中读取 history 数据（趋势图）
-                    // 2. 生成新的 Allure 报告到默认目录（工作空间/allure-report）
-                    // 3. 将新报告的历史数据归档，供后续构建使用
+                    // 强制删除旧报告，确保重新生成
+                    bat """
+                        if exist "${ALLURE_REPORT_DIR}" rmdir /s /q "${ALLURE_REPORT_DIR}"
+                    """
+                    echo "✅ 已清理旧报告目录"
+
+                    // 使用 Allure 插件，指定输出目录并启用 clean
                     allure([
-                        includeProperties: false,        // 不包含额外属性
-                        jdk: '',                         // 使用默认JDK
-                        properties: [],                  // 可选的额外属性
-                        reportBuildPolicy: 'ALWAYS',     // 每次构建都生成报告
-                        results: [[path: env.ALLURE_RESULTS]]  // 指定结果目录
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: env.ALLURE_RESULTS]],
+                        report: env.ALLURE_REPORT_DIR,
+                        clean: true
                     ])
-                    // 注意：插件生成的报告默认在 ${WORKSPACE}/allure-report，
-                    // 但我们可以通过 report 参数指定，这里不指定，保持与插件默认一致。
-                    // 为了后续 publishHTML 能找到，我们将默认报告复制到自定义目录（可选）
-                    // 或者直接使用默认目录。为了方便，我们保持环境变量 ALLURE_REPORT_DIR 指向默认位置。
-                    // 但插件默认输出目录是 'allure-report'，与我们的变量一致，所以无需额外操作。
+                    echo "✅ Allure 报告已生成至 ${ALLURE_REPORT_DIR}"
                 }
 
-                // 使用 publishHTML 发布报告到 Jenkins 页面（可选，插件已经提供了 Allure 链接）
-                // 但为了在构建页面显示 HTML 报告，可以保留
                 publishHTML([
                     reportDir: env.ALLURE_REPORT_DIR,
                     reportFiles: 'index.html',
@@ -194,16 +172,12 @@ pipeline {
     }
 }
 
-// ========== 根据环境参数返回 base_url ==========
+// ========== 辅助函数 ==========
 def getBaseUrl(String envName) {
-    def urls = [
-        'dev' : 'http://127.0.0.1:5000',
-        'prod': 'https://api.example.com'
-    ]
+    def urls = ['dev' : 'http://127.0.0.1:5000', 'prod': 'https://api.example.com']
     return urls[envName] ?: 'unknown'
 }
 
-// ========== 邮件发送函数 ==========
 def sendEmailNotification(String status, String color, String icon) {
     emailext (
         to: env.MAIL_RECIPIENT,
