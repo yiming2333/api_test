@@ -90,7 +90,6 @@ pipeline {
         stage('3.5 写入 Allure 环境 & 执行器信息') {
             steps {
                 script {
-                    // ---------- environment.properties ----------
                     def envProps = """
                         Environment=${params.ENV}
                         Python.Version=3.10
@@ -104,7 +103,6 @@ pipeline {
                     writeFile file: "${ALLURE_RESULTS}/environment.properties", text: envProps, encoding: 'UTF-8'
                     echo "✅ environment.properties 已写入"
 
-                    // ---------- executor.json（JsonOutput 保证 buildOrder 为数字类型）----------
                     def executorData = [
                         name       : 'Jenkins',
                         type       : 'jenkins',
@@ -124,23 +122,14 @@ pipeline {
 
         stage('4. 生成 Allure 报告') {
             steps {
-                // ⚠️ 诊断：确认插件是否被 Jenkins 识别
-                echo "Allure plugin class check: ${jenkins.model.Jenkins.instance.pluginManager.plugins.find { it.shortName == 'allure-jenkins-plugin' }?.version ?: 'NOT FOUND'}"
-
-                // ⚠️ 不用 script 包裹，直接调用 allure 步骤
-                // catchError 强制暴露任何被静默吞掉的异常
-                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                    allure([
-                        includeProperties: false,
-                        tool             : 'allure-2.43.0',
-                        jdk              : '',
-                        properties       : [],
-                        reportBuildPolicy: 'ALWAYS',
-                        results          : [[path: 'reports/allure-results']],
-                        clean            : true
-                    ])
-                }
-                echo "✅ Allure 步骤执行完毕，请查看侧边栏 [Allure Report]"
+                // ⚠️ 适配 Allure Jenkins Plugin 2.35.x 新参数签名
+                // 2.35.x 移除了 tool/includeProperties/jdk/reportBuildPolicy/clean
+                // 改为使用 name + results + commandline 方式
+                allure([
+                    name    : 'AllureReport',
+                    results : [[path: 'reports/allure-results']]
+                ])
+                echo "✅ Allure 报告已生成，请查看侧边栏 [Allure Report]"
             }
         }
     }
