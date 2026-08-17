@@ -1,8 +1,10 @@
+import groovy.json.JsonOutput
+
 pipeline {
     agent any
 
     options {
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: params?.MARK == 'regression' ? 60 : 30, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '30'))
     }
@@ -13,17 +15,17 @@ pipeline {
     }
 
     environment {
-        PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
-        PIP_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple'
-        ALLURE_RESULTS = 'reports/allure-results'
-        ALLURE_REPORT_DIR = 'reports/allure-report'
+        PYTHON_PATH      = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
+        PIP_INDEX_URL    = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+        ALLURE_RESULTS   = 'reports/allure-results'
+        // ⚠️ 不再自定义 report 路径，使用插件默认的 allure-report
         ALLURE_REPORT_NAME = 'AllureReport'
-        MAIL_RECIPIENT = 'yiming_2333@sina.com'
+        MAIL_RECIPIENT   = 'yiming_2333@sina.com'
         PYTHONIOENCODING = 'utf-8'
-        GIT_URL = 'https://github.com/yiming2333/api_test.git'
-        GIT_BRANCH = 'master'
+        GIT_URL          = 'https://github.com/yiming2333/api_test.git'
+        GIT_BRANCH       = 'master'
         GIT_CREDENTIALS_ID = ''
-        REPORT_LINK = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${env.ALLURE_REPORT_NAME}/"
+        REPORT_LINK      = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
     }
 
     stages {
@@ -62,7 +64,7 @@ pipeline {
                 echo "正在安装 Python 依赖..."
                 bat """
                     chcp 65001
-                    "${PYTHON_PATH}" -m pip install -r requirements.txt -q -i ${PIP_INDEX_URL}
+                    "${PYTHON_PATH}" -m pip install -r requirements.txt -q -i ${PIP_INDEX_URL} --cache-dir .pip-cache
                 """
             }
         }
@@ -89,6 +91,7 @@ pipeline {
         stage('3.5 写入 Allure 环境 & 执行器信息') {
             steps {
                 script {
+                    // ---------- environment.properties ----------
                     def envProps = """
                         Environment=${params.ENV}
                         Python.Version=3.10
@@ -102,54 +105,41 @@ pipeline {
                     writeFile file: "${ALLURE_RESULTS}/environment.properties", text: envProps, encoding: 'UTF-8'
                     echo "✅ environment.properties 已写入"
 
-                    def reportUrl = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
-                    def buildUrl  = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/"
-                    def jsonStr   = """{
-                        "name": "Jenkins",
-                        "type": "jenkins",
-                        "url": "${env.JENKINS_URL}",
-                        "buildOrder": ${env.BUILD_NUMBER},
-                        "buildName": "#${env.BUILD_NUMBER}",
-                        "buildUrl": "${buildUrl}",
-                        "reportUrl": "${reportUrl}",
-                        "reportName": "${ALLURE_REPORT_NAME}"
-                    }"""
+                    // ---------- executor.json（JsonOutput 保证 buildOrder 为数字类型）----------
+                    def executorData = [
+                        name       : 'Jenkins',
+                        type       : 'jenkins',
+                        url        : env.JENKINS_URL,
+                        buildOrder : env.BUILD_NUMBER.toInteger(),
+                        buildName  : "#${env.BUILD_NUMBER}",
+                        buildUrl   : "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/",
+                        reportUrl  : "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/",
+                        reportName : ALLURE_REPORT_NAME
+                    ]
+                    def jsonStr = JsonOutput.toJson(executorData)
                     writeFile file: "${ALLURE_RESULTS}/executor.json", text: jsonStr, encoding: 'UTF-8'
-                    echo "✅ executor.json 已写入"
+                    echo "✅ executor.json 已写入: ${jsonStr}"
                 }
             }
         }
 
-        stage('4. 生成并发布 Allure 报告') {
+        stage('4. 生成 Allure 报告') {
             steps {
                 script {
-                    // 强制删除旧报告，确保重新生成
-                    bat """
-                        if exist "${ALLURE_REPORT_DIR}" rmdir /s /q "${ALLURE_REPORT_DIR}"
-                    """
-                    echo "✅ 已清理旧报告目录"
-
-                    // 使用 Allure 插件，指定输出目录并启用 clean
+                    // ⚠️ 关键修复：
+                    //   1. 移除 report 参数 → 使用默认 allure-report 目录 → 插件历史归档正常工作
+                    //   2. 移除手动 rmdir → clean:true 已足够，避免竞态破坏历史数据
+                    //   3. 移除 publishHTML → 插件自带侧边栏入口，无需冗余发布
                     allure([
                         includeProperties: false,
-                        jdk: '',
-                        properties: [],
+                        jdk              : '',
+                        properties       : [],
                         reportBuildPolicy: 'ALWAYS',
-                        results: [[path: env.ALLURE_RESULTS]],
-                        report: env.ALLURE_REPORT_DIR,
-                        clean: true
+                        results          : [[path: env.ALLURE_RESULTS]],
+                        clean            : true
                     ])
-                    echo "✅ Allure 报告已生成至 ${ALLURE_REPORT_DIR}"
+                    echo "✅ Allure 报告已生成（含趋势图），请查看侧边栏 [Allure Report]"
                 }
-
-                publishHTML([
-                    reportDir: env.ALLURE_REPORT_DIR,
-                    reportFiles: 'index.html',
-                    reportName: env.ALLURE_REPORT_NAME,
-                    allowMissing: true,
-                    keepAll: true,
-                    alwaysLinkToLastBuild: false
-                ])
             }
         }
     }
@@ -159,12 +149,10 @@ pipeline {
             echo "流水线执行结束"
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
         }
-
         success {
             echo "✅ 恭喜！所有测试用例通过！"
             script { sendEmailNotification('SUCCESS', 'green', '✅') }
         }
-
         failure {
             echo "❌ 存在失败的测试用例，请查看 Allure 报告。"
             script { sendEmailNotification('FAILURE', 'red', '❌') }
@@ -172,17 +160,16 @@ pipeline {
     }
 }
 
-// ========== 辅助函数 ==========
 def getBaseUrl(String envName) {
-    def urls = ['dev' : 'http://127.0.0.1:5000', 'prod': 'https://api.example.com']
+    def urls = ['dev': 'http://127.0.0.1:5000', 'prod': 'https://api.example.com']
     return urls[envName] ?: 'unknown'
 }
 
 def sendEmailNotification(String status, String color, String icon) {
-    emailext (
-        to: env.MAIL_RECIPIENT,
-        subject: "${icon} 测试${status == 'SUCCESS' ? '通过' : '失败'} - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
-        body: """
+    emailext(
+        to      : env.MAIL_RECIPIENT,
+        subject : "${icon} 测试${status == 'SUCCESS' ? '通过' : '失败'} - ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+        body    : """
             <p>各位同事，大家好！</p>
             <p>项目 <strong>${env.JOB_NAME}</strong> 构建${status == 'SUCCESS' ? '成功' : '失败'}！</p>
             <ul>
