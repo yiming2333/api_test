@@ -132,6 +132,7 @@ pipeline {
                     //   3. 移除 publishHTML → 插件自带侧边栏入口，无需冗余发布
                     allure([
                         includeProperties: false,
+                        tool             : 'allure-2.43.0',       // ← 必须加，名称与上面配置一致
                         jdk              : '',
                         properties       : [],
                         reportBuildPolicy: 'ALWAYS',
