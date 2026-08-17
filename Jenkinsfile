@@ -122,13 +122,14 @@ pipeline {
 
         stage('4. 生成 Allure 报告') {
             steps {
-                // ⚠️ 适配 Allure Jenkins Plugin 2.35.x 新参数签名
-                // 2.35.x 移除了 tool/includeProperties/jdk/reportBuildPolicy/clean
-                // 改为使用 name + results + commandline 方式
-                allure([
-                    name    : 'AllureReport',
-                    results : [[path: 'reports/allure-results']]
-                ])
+                // ⚠️ 此语法适用于 Allure Jenkins Plugin 2.30.x
+                // 2.30.x 支持完整的 tool/results/reportBuildPolicy/clean 参数
+                allure includeProperties: false,
+                       jdk: '',
+                       tool: 'allure-2.43.0',
+                       results: [[path: 'reports/allure-results']],
+                       reportBuildPolicy: 'ALWAYS',
+                       clean: true
                 echo "✅ Allure 报告已生成，请查看侧边栏 [Allure Report]"
             }
         }
