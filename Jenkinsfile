@@ -37,7 +37,7 @@ pipeline {
         GIT_CREDENTIALS_ID = ''
 
         // ========== 报告链接（严格按你的格式，不改动）==========
-        REPORT_LINK = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.ALLURE_REPORT_NAME}/"
+        REPORT_LINK = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${env.ALLURE_REPORT_NAME}/"
     }
 
     stages {
