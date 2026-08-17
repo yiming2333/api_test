@@ -24,7 +24,8 @@ pipeline {
         GIT_URL            = 'https://github.com/yiming2333/api_test.git'
         GIT_BRANCH         = 'master'
         GIT_CREDENTIALS_ID = ''
-        REPORT_LINK        = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
+//         REPORT_LINK        = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
+        REPORT_LINK        = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/allure/"
     }
 
     stages {
