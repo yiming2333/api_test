@@ -1,0 +1,12 @@
+{
+  "code": 0,
+  "data": {
+    "address": "\u6d4b\u8bd5\u5730\u5740",
+    "order_id": "ORD178696008828B4",
+    "product_id": "SKU_001",
+    "quantity": 1,
+    "status": "pending",
+    "user_id": 10086
+  },
+  "message": "success"
+}

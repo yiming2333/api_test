@@ -1,0 +1,9 @@
+{
+  "code": 0,
+  "data": {
+    "token": "mock-jwt-79e23416b3fa4635",
+    "user_id": 10086,
+    "username": "testuser"
+  },
+  "message": "success"
+}

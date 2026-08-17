@@ -1,0 +1,35 @@
+# config/testdata/order.yaml
+
+test_order_query:
+  - case_id: ORDER_001
+    title: "查询已创建的订单"
+    depends_on: created_order        # ← 声明依赖哪个 fixture
+    request:
+      method: get
+      url: "/api/orders/${order_id}"  # ← 占位符
+    expect:
+      status_code: 200
+      json_path:
+        - ["$.data.status", "pending"]
+
+  - case_id: ORDER_002
+    title: "取消订单"
+    depends_on: created_order
+    request:
+      method: put
+      url: "/api/orders/${order_id}/cancel"
+    expect:
+      status_code: 200
+
+test_file_upload:
+  - case_id: FILE_001
+    title: "用凭证提交文件"
+    depends_on: upload_credential
+    request:
+      method: post
+      url: "/api/files/commit"
+      json:
+        file_key: "${file_key}"       # ← 占位符
+        file_name: "test.png"
+    expect:
+      status_code: 200

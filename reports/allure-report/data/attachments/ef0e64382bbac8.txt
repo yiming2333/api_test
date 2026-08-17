@@ -1,0 +1,8 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/files/upload-token
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'file_name': 'test.png', 'file_type': 'image/png'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.003516s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'file_key': 'fk-444afa6f02ff'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: PUT http://127.0.0.1:5000/api/users/me/avatar
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'file_key': 'fk-444afa6f02ff'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.020016s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'avatar': 'fk-444afa6f02ff'}, 'message': 'success'}

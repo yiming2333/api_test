@@ -1,4 +1,0 @@
-[32mINFO    [0m api_test:http_client.py:28 ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
-[32mINFO    [0m api_test:http_client.py:29    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
-[32mINFO    [0m api_test:http_client.py:47 ⬅️  状态码: 200 | 耗时: 0.005493s
-[32mINFO    [0m api_test:http_client.py:49    响应体: {'code': 0, 'data': {'token': 'mock-jwt-token-abc123', 'username': 'testuser'}, 'message': 'success'}

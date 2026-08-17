@@ -1,4 +1,20 @@
 "DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
-"","37","[LOGIN_003] 缺少用户名参数返回400","testcases","2026-08-13","passed","2026-08-13","TestLogin","test_login","",""
-"","40","[LOGIN_002] 密码错误返回401","testcases","2026-08-13","passed","2026-08-13","TestLogin","test_login","",""
-"","21","[LOGIN_001] 正确账号密码登录成功","testcases","2026-08-13","passed","2026-08-13","TestLogin","test_login","",""
+"
+        更新头像：
+        1. upload_credential 先拿到 file_key
+        2. 用 file_key 提交更新
+        ","33","test_update_avatar","testcases","2026-08-17","passed","2026-08-17","TestProfile","test_profile","",""
+"取消订单","12","test_cancel_order","testcases","2026-08-17","passed","2026-08-17","TestOrder","test_order","",""
+"查询任务（task fixture 已保证 登录→项目→任务 全部就绪）","32","test_query_task","testcases","2026-08-17","passed","2026-08-17","TestTaskFlow","test_task_flow","",""
+"获取个人信息（只需要登录态）","12","test_get_profile","testcases","2026-08-17","passed","2026-08-17","TestProfile","test_profile","",""
+"","35","[LOGIN_002] 密码错误返回401","testcases","2026-08-17","passed","2026-08-17","TestLogin","test_login","",""
+"
+        查询订单详情。
+        created_order fixture 已经创建好订单并写入 context，
+        这里直接取 order_id 用。
+        ","30","test_query_order","testcases","2026-08-17","passed","2026-08-17","TestOrder","test_order","",""
+"更新任务状态","16","test_update_task_status","testcases","2026-08-17","passed","2026-08-17","TestTaskFlow","test_task_flow","",""
+"","33","[ORDER_002] 取消订单","testcases","2026-08-17","passed","2026-08-17","TestOrderQuery","test_order","",""
+"","36","[LOGIN_003] 缺少用户名参数返回400","testcases","2026-08-17","passed","2026-08-17","TestLogin","test_login","",""
+"","44","[LOGIN_001] 正确账号密码登录成功","testcases","2026-08-17","passed","2026-08-17","TestLogin","test_login","",""
+"","82","[ORDER_001] 查询已创建的订单","testcases","2026-08-17","passed","2026-08-17","TestOrderQuery","test_order","",""

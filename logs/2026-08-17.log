@@ -1,0 +1,278 @@
+[2026-08-17 17:45:00] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:45:00] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 200 | 耗时: 0.015252s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-fdde55250b8246fa', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:45:00] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 201 | 耗时: 0.003345s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959900EE40'}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD1786959900EE40
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 200 | 耗时: 0.003209s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD1786959900EE40', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD1786959900EE40/cancel
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 200 | 耗时: 0.027474s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959900EE40', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD1786959900EE40
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 405 | 耗时: 0.023678s
+[2026-08-17 17:45:00] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:45:00] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:45:00] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 201 | 耗时: 0.025542s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959900A935'}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD1786959900A935
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 200 | 耗时: 0.021708s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD1786959900A935', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD1786959900A935/cancel
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 200 | 耗时: 0.020261s
+[2026-08-17 17:45:00] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959900A935', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:45:00] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD1786959900A935
+[2026-08-17 17:45:00] [INFO]    参数: {}
+[2026-08-17 17:45:00] [INFO] ⬅️  状态码: 405 | 耗时: 0.01633s
+[2026-08-17 17:45:00] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:45:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:45:27] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:45:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.004046s
+[2026-08-17 17:45:27] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-57420bf66c1742b9', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:45:27] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/users/10086/profile
+[2026-08-17 17:45:27] [INFO]    参数: {}
+[2026-08-17 17:45:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.003317s
+[2026-08-17 17:45:27] [INFO]    响应体: {'code': 0, 'data': {'avatar': None, 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:45:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/files/upload-token
+[2026-08-17 17:45:27] [INFO]    参数: {'json': {'file_name': 'test.png', 'file_type': 'image/png'}}
+[2026-08-17 17:45:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.019221s
+[2026-08-17 17:45:27] [INFO]    响应体: {'code': 0, 'data': {'file_key': 'fk-0b321309adc9'}, 'message': 'success'}
+[2026-08-17 17:45:27] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/users/me/avatar
+[2026-08-17 17:45:27] [INFO]    参数: {'json': {'file_key': 'fk-0b321309adc9'}}
+[2026-08-17 17:45:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.003376s
+[2026-08-17 17:45:27] [INFO]    响应体: {'code': 0, 'data': {'avatar': 'fk-0b321309adc9'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:46:02] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 200 | 耗时: 0.024939s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-6d91ad2fe34446e9', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects
+[2026-08-17 17:46:02] [INFO]    参数: {'json': {'name': '自动化测试项目'}}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 201 | 耗时: 0.003279s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': {'id': 'PRJ85AD867F'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects/PRJ85AD867F/tasks
+[2026-08-17 17:46:02] [INFO]    参数: {'json': {'title': '测试任务', 'priority': 'high'}}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 201 | 耗时: 0.017908s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKBCA40282'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/projects/PRJ85AD867F/tasks/TSKBCA40282
+[2026-08-17 17:46:02] [INFO]    参数: {}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 200 | 耗时: 0.003012s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKBCA40282', 'priority': 'high', 'project_id': 'PRJ85AD867F', 'status': 'open', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/projects/PRJ85AD867F/tasks/TSKBCA40282
+[2026-08-17 17:46:02] [INFO]    参数: {'json': {'status': 'done'}}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 200 | 耗时: 0.017744s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKBCA40282', 'priority': 'high', 'project_id': 'PRJ85AD867F', 'status': 'done', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:46:02] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/projects/PRJ85AD867F
+[2026-08-17 17:46:02] [INFO]    参数: {}
+[2026-08-17 17:46:02] [INFO] ⬅️  状态码: 200 | 耗时: 0.025893s
+[2026-08-17 17:46:02] [INFO]    响应体: {'code': 0, 'data': None, 'message': 'success'}
+[2026-08-17 17:46:26] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:46:26] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:46:26] [INFO] ⬅️  状态码: 200 | 耗时: 0.022766s
+[2026-08-17 17:46:26] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-337cede0733e4205', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:46:26] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:46:26] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'wrong_pwd'}}
+[2026-08-17 17:46:26] [INFO] ⬅️  状态码: 401 | 耗时: 0.020871s
+[2026-08-17 17:46:26] [INFO]    响应体: {'code': 401, 'data': None, 'message': '用户名或密码错误'}
+[2026-08-17 17:46:26] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:46:26] [INFO]    参数: {'json': {'password': 'Test@123'}}
+[2026-08-17 17:46:26] [INFO] ⬅️  状态码: 400 | 耗时: 0.022317s
+[2026-08-17 17:46:26] [INFO]    响应体: {'code': 400, 'data': None, 'message': '缺少用户名参数'}
+[2026-08-17 17:46:26] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:46:26] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.022931s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-5ca0a5f137dc445f', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 201 | 耗时: 0.003327s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD178695998757B3'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD178695998757B3
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.021763s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD178695998757B3', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD178695998757B3/cancel
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.020096s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD178695998757B3', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD178695998757B3
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 405 | 耗时: 0.024246s
+[2026-08-17 17:46:27] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:46:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 201 | 耗时: 0.025968s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959987EB0A'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD1786959987EB0A
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.021573s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD1786959987EB0A', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD1786959987EB0A/cancel
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.01881s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786959987EB0A', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD1786959987EB0A
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 405 | 耗时: 0.0031s
+[2026-08-17 17:46:27] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:46:27] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/users/10086/profile
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.026468s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'avatar': 'fk-0b321309adc9', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/files/upload-token
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'file_name': 'test.png', 'file_type': 'image/png'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.003289s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'file_key': 'fk-3ea3549d3d7a'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/users/me/avatar
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'file_key': 'fk-3ea3549d3d7a'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.016168s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'avatar': 'fk-3ea3549d3d7a'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'name': '自动化测试项目'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 201 | 耗时: 0.012129s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'id': 'PRJ36815A96'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects/PRJ36815A96/tasks
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'title': '测试任务', 'priority': 'high'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 201 | 耗时: 0.019709s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKC9DB11F1'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/projects/PRJ36815A96/tasks/TSKC9DB11F1
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.002976s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKC9DB11F1', 'priority': 'high', 'project_id': 'PRJ36815A96', 'status': 'open', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/projects/PRJ36815A96/tasks/TSKC9DB11F1
+[2026-08-17 17:46:27] [INFO]    参数: {'json': {'status': 'done'}}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.003305s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSKC9DB11F1', 'priority': 'high', 'project_id': 'PRJ36815A96', 'status': 'done', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:46:27] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/projects/PRJ36815A96
+[2026-08-17 17:46:27] [INFO]    参数: {}
+[2026-08-17 17:46:27] [INFO] ⬅️  状态码: 200 | 耗时: 0.022883s
+[2026-08-17 17:46:27] [INFO]    响应体: {'code': 0, 'data': None, 'message': 'success'}
+[2026-08-17 17:47:10] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:47:10] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:47:10] [INFO] ⬅️  状态码: 200 | 耗时: 0.018106s
+[2026-08-17 17:47:10] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-f71c5d15c07d400c', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:47:10] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:47:10] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'wrong_pwd'}}
+[2026-08-17 17:47:10] [INFO] ⬅️  状态码: 401 | 耗时: 0.020714s
+[2026-08-17 17:47:10] [INFO]    响应体: {'code': 401, 'data': None, 'message': '用户名或密码错误'}
+[2026-08-17 17:47:10] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:47:10] [INFO]    参数: {'json': {'password': 'Test@123'}}
+[2026-08-17 17:47:10] [INFO] ⬅️  状态码: 400 | 耗时: 0.003158s
+[2026-08-17 17:47:10] [INFO]    响应体: {'code': 400, 'data': None, 'message': '缺少用户名参数'}
+[2026-08-17 17:48:07] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:48:07] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:48:07] [INFO] ⬅️  状态码: 200 | 耗时: 0.027906s
+[2026-08-17 17:48:07] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-704aef2928b74d15', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:48:07] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:48:07] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'wrong_pwd'}}
+[2026-08-17 17:48:07] [INFO] ⬅️  状态码: 401 | 耗时: 0.022523s
+[2026-08-17 17:48:07] [INFO]    响应体: {'code': 401, 'data': None, 'message': '用户名或密码错误'}
+[2026-08-17 17:48:07] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:48:07] [INFO]    参数: {'json': {'password': 'Test@123'}}
+[2026-08-17 17:48:07] [INFO] ⬅️  状态码: 400 | 耗时: 0.023259s
+[2026-08-17 17:48:07] [INFO]    响应体: {'code': 400, 'data': None, 'message': '缺少用户名参数'}
+[2026-08-17 17:48:07] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[2026-08-17 17:48:07] [INFO]    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[2026-08-17 17:48:07] [INFO] ⬅️  状态码: 200 | 耗时: 0.003321s
+[2026-08-17 17:48:07] [INFO]    响应体: {'code': 0, 'data': {'token': 'mock-jwt-79e23416b3fa4635', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:48:07] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:48:07] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 201 | 耗时: 0.022149s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786960088D95B'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD1786960088D95B
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.021118s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD1786960088D95B', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD1786960088D95B/cancel
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.024347s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD1786960088D95B', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD1786960088D95B
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 405 | 耗时: 0.023533s
+[2026-08-17 17:48:08] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:48:08] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 201 | 耗时: 0.024133s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD178696008828B4'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD178696008828B4
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.020848s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'address': '测试地址', 'order_id': 'ORD178696008828B4', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD178696008828B4/cancel
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.003408s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'order_id': 'ORD178696008828B4', 'status': 'cancelled'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/orders/ORD178696008828B4
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 405 | 耗时: 0.003356s
+[2026-08-17 17:48:08] [INFO]    响应体(非JSON): <!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+
+[2026-08-17 17:48:08] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/users/10086/profile
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.003073s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'avatar': 'fk-3ea3549d3d7a', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/files/upload-token
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'file_name': 'test.png', 'file_type': 'image/png'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.003516s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'file_key': 'fk-444afa6f02ff'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/users/me/avatar
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'file_key': 'fk-444afa6f02ff'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.020016s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'avatar': 'fk-444afa6f02ff'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'name': '自动化测试项目'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 201 | 耗时: 0.003232s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'id': 'PRJ75167EBE'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: POST http://127.0.0.1:5000/api/projects/PRJ75167EBE/tasks
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'title': '测试任务', 'priority': 'high'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 201 | 耗时: 0.013413s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSK52F62CF6'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: GET http://127.0.0.1:5000/api/projects/PRJ75167EBE/tasks/TSK52F62CF6
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.021708s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSK52F62CF6', 'priority': 'high', 'project_id': 'PRJ75167EBE', 'status': 'open', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: PUT http://127.0.0.1:5000/api/projects/PRJ75167EBE/tasks/TSK52F62CF6
+[2026-08-17 17:48:08] [INFO]    参数: {'json': {'status': 'done'}}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.00334s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': {'id': 'TSK52F62CF6', 'priority': 'high', 'project_id': 'PRJ75167EBE', 'status': 'done', 'title': '测试任务'}, 'message': 'success'}
+[2026-08-17 17:48:08] [INFO] ➡️  请求: DELETE http://127.0.0.1:5000/api/projects/PRJ75167EBE
+[2026-08-17 17:48:08] [INFO]    参数: {}
+[2026-08-17 17:48:08] [INFO] ⬅️  状态码: 200 | 耗时: 0.003121s
+[2026-08-17 17:48:08] [INFO]    响应体: {'code': 0, 'data': None, 'message': 'success'}
