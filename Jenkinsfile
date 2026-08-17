@@ -17,7 +17,6 @@ pipeline {
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
 
         // ========== Allure 命令完整路径（不依赖 PATH）==========
-        // ⚠️ 改成你实际的 allure.bat 路径
         ALLURE_CMD = 'C:/Users/27088/AppData/Roaming/npm/node_modules/allure-commandline/dist/bin/allure.bat'
 
         // ========== pip 依赖源 ==========
@@ -29,8 +28,6 @@ pipeline {
         ALLURE_REPORT_NAME = 'AllureReport'
 
         // ========== 【关键】History 固定存储目录 ==========
-        // 这个目录不在 workspace 里，不会被 cleanWorkspace 清掉
-        // 用 JOB_NAME 区分不同任务，防止多任务互相覆盖
         ALLURE_HISTORY_DIR = "C:/work/yss/allure-history/${env.JOB_NAME}"
 
         // ========== 邮件配置 ==========
@@ -109,6 +106,45 @@ pipeline {
         }
 
         // ================================================================
+        //  stage 3.5：写入 Allure Environment + Executor 元数据
+        // ================================================================
+        stage('3.5 写入 Allure 环境 & 执行器信息') {
+            steps {
+                script {
+                    // ---------- 1. environment.properties ----------
+                    def envProps = """
+                        Environment=${params.ENV}
+                        Python.Version=3.10
+                        Pytest.Mark=${params.MARK}
+                        Trigger.User=${env.TRIGGER_USER ?: 'unknown'}
+                        Build.Number=${env.BUILD_NUMBER}
+                        Git.Branch=${env.GIT_BRANCH}
+                        Base.URL=${getBaseUrl(params.ENV)}
+                        OS=Windows
+                    """.stripIndent().trim()
+                    writeFile file: "${ALLURE_RESULTS}/environment.properties", text: envProps, encoding: 'UTF-8'
+                    echo "✅ environment.properties 已写入"
+
+                    // ---------- 2. executor.json（纯 Groovy 手写，无需额外插件）----------
+                    def reportUrl = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
+                    def buildUrl  = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/"
+                    def jsonStr   = """{
+                        "name": "Jenkins",
+                        "type": "jenkins",
+                        "url": "${env.JENKINS_URL}",
+                        "buildOrder": ${env.BUILD_NUMBER},
+                        "buildName": "#${env.BUILD_NUMBER}",
+                        "buildUrl": "${buildUrl}",
+                        "reportUrl": "${reportUrl}",
+                        "reportName": "${ALLURE_REPORT_NAME}"
+                    }"""
+                    writeFile file: "${ALLURE_RESULTS}/executor.json", text: jsonStr, encoding: 'UTF-8'
+                    echo "✅ executor.json 已写入"
+                }
+            }
+        }
+
+        // ================================================================
         //  stage 4：生成 Allure 报告 + Trend（完善版）
         // ================================================================
         stage('4. 生成并发布 Allure 报告') {
@@ -140,7 +176,6 @@ pipeline {
                         echo "✅ Allure 报告生成成功"
                     } catch (e) {
                         echo "❌ Allure 报告生成失败: ${e.message}"
-                        // 不 raise，让 pipeline 继续走到 publishHTML
                     }
 
                     // ---------- Step 4: 把新生成的 history 拷回固定目录（供下次使用）----------
@@ -169,7 +204,6 @@ pipeline {
     post {
         always {
             echo "流水线执行结束"
-            // 归档日志 + history（双保险）
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
             archiveArtifacts artifacts: 'reports/allure-report/history/**', allowEmptyArchive: true
         }
@@ -186,7 +220,16 @@ pipeline {
     }
 }
 
-// ========== 邮件发送函数（不变）==========
+// ========== 根据环境参数返回 base_url ==========
+def getBaseUrl(String envName) {
+    def urls = [
+        'dev' : 'http://127.0.0.1:5000',
+        'prod': 'https://api.example.com'
+    ]
+    return urls[envName] ?: 'unknown'
+}
+
+// ========== 邮件发送函数 ==========
 def sendEmailNotification(String status, String color, String icon) {
     emailext (
         to: env.MAIL_RECIPIENT,
