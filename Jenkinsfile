@@ -87,7 +87,7 @@ pipeline {
                         <li>构建编号：<strong>#${env.BUILD_NUMBER}</strong></li>
                         <li>构建状态：<span style="color: green;">✅ SUCCESS</span></li>
                         <li>触发人：${env.BUILD_USER_ID ?: '未知'}</li>
-                        <li>测试报告：<a href="${env.BUILD_URL}AllureReport/">${env.BUILD_URL}AllureReport/</a></li>
+                        <li>测试报告：<a href="${env.JENKINS_URL}job/${env.JOB_NAME}/AllureReport/">${env.JENKINS_URL}job/${env.JOB_NAME}/AllureReport/</a></li>
                     </ul>
                     <p>请点击上方链接查看 Allure 测试报告详情。</p>
                     <hr/>
@@ -109,7 +109,7 @@ pipeline {
                         <li>构建编号：<strong>#${env.BUILD_NUMBER}</strong></li>
                         <li>构建状态：<span style="color: red;">❌ FAILURE</span></li>
                         <li>触发人：${env.BUILD_USER_ID ?: '未知'}</li>
-                        <li>测试报告：<a href="${env.BUILD_URL}AllureReport/">${env.BUILD_URL}AllureReport/</a></li>
+                        <li>测试报告：<a href="${env.JENKINS_URL}job/${env.JOB_NAME}/AllureReport/">${env.JENKINS_URL}job/${env.JOB_NAME}/AllureReport/</a></li>
                     </ul>
                     <p>请点击上方链接查看 Allure 测试报告详情，并排查失败原因。</p>
                     <hr/>
