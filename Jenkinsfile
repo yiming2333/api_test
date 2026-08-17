@@ -16,9 +16,6 @@ pipeline {
         // ========== 系统路径 ==========
         PYTHON_PATH = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
 
-        // ========== Allure 命令完整路径（不依赖 PATH）==========
-        ALLURE_CMD = 'C:/Users/27088/AppData/Roaming/npm/node_modules/allure-commandline/dist/bin/allure.bat'
-
         // ========== pip 依赖源 ==========
         PIP_INDEX_URL = 'https://pypi.tuna.tsinghua.edu.cn/simple'
 
@@ -26,9 +23,6 @@ pipeline {
         ALLURE_RESULTS = 'reports/allure-results'
         ALLURE_REPORT_DIR = 'reports/allure-report'
         ALLURE_REPORT_NAME = 'AllureReport'
-
-        // ========== 【关键】History 固定存储目录 ==========
-        ALLURE_HISTORY_DIR = "C:/work/yss/allure-history/${env.JOB_NAME}"
 
         // ========== 邮件配置 ==========
         MAIL_RECIPIENT = 'yiming_2333@sina.com'
@@ -125,7 +119,7 @@ pipeline {
                     writeFile file: "${ALLURE_RESULTS}/environment.properties", text: envProps, encoding: 'UTF-8'
                     echo "✅ environment.properties 已写入"
 
-                    // ---------- 2. executor.json（纯 Groovy 手写，无需额外插件）----------
+                    // ---------- 2. executor.json（手动写入，保证显示构建信息）----------
                     def reportUrl = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
                     def buildUrl  = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/"
                     def jsonStr   = """{
@@ -145,50 +139,31 @@ pipeline {
         }
 
         // ================================================================
-        //  stage 4：生成 Allure 报告 + Trend（完善版）
+        //  stage 4：使用 Allure Jenkins Plugin 自动生成报告 + 处理趋势
         // ================================================================
         stage('4. 生成并发布 Allure 报告') {
             steps {
                 script {
-                    // ---------- Step 1: 确保 history 固定目录存在 ----------
-                    bat """
-                        if not exist "${ALLURE_HISTORY_DIR}" mkdir "${ALLURE_HISTORY_DIR}"
-                    """
-
-                    // ---------- Step 2: 从固定目录拷贝 history 到本次 results ----------
-                    if (fileExists("${ALLURE_HISTORY_DIR}/history.json")) {
-                        echo "✅ 找到历史 Trend 数据，正在注入..."
-                        bat """
-                            chcp 65001
-                            if not exist "${ALLURE_RESULTS}\\history" mkdir "${ALLURE_RESULTS}\\history"
-                            xcopy /E /I /Y "${ALLURE_HISTORY_DIR}\\*" "${ALLURE_RESULTS}\\history\\" >nul
-                        """
-                    } else {
-                        echo "ℹ️ 首次构建或无历史数据，跳过 history 注入"
-                    }
-
-                    // ---------- Step 3: 生成报告（写死 allure 路径，不依赖 PATH）----------
-                    try {
-                        bat """
-                            chcp 65001
-                            "${ALLURE_CMD}" generate "${ALLURE_RESULTS}" -o "${ALLURE_REPORT_DIR}" --clean
-                        """
-                        echo "✅ Allure 报告生成成功"
-                    } catch (e) {
-                        echo "❌ Allure 报告生成失败: ${e.message}"
-                    }
-
-                    // ---------- Step 4: 把新生成的 history 拷回固定目录（供下次使用）----------
-                    if (fileExists("${ALLURE_REPORT_DIR}/history")) {
-                        bat """
-                            chcp 65001
-                            xcopy /E /I /Y "${ALLURE_REPORT_DIR}\\history\\*" "${ALLURE_HISTORY_DIR}\\" >nul
-                        """
-                        echo "✅ History 已同步到固定目录: ${ALLURE_HISTORY_DIR}"
-                    }
+                    // 使用 allure 步骤，插件会自动：
+                    // 1. 从历史构建中读取 history 数据（趋势图）
+                    // 2. 生成新的 Allure 报告到默认目录（工作空间/allure-report）
+                    // 3. 将新报告的历史数据归档，供后续构建使用
+                    allure([
+                        includeProperties: false,        // 不包含额外属性
+                        jdk: '',                         // 使用默认JDK
+                        properties: [],                  // 可选的额外属性
+                        reportBuildPolicy: 'ALWAYS',     // 每次构建都生成报告
+                        results: [[path: env.ALLURE_RESULTS]]  // 指定结果目录
+                    ])
+                    // 注意：插件生成的报告默认在 ${WORKSPACE}/allure-report，
+                    // 但我们可以通过 report 参数指定，这里不指定，保持与插件默认一致。
+                    // 为了后续 publishHTML 能找到，我们将默认报告复制到自定义目录（可选）
+                    // 或者直接使用默认目录。为了方便，我们保持环境变量 ALLURE_REPORT_DIR 指向默认位置。
+                    // 但插件默认输出目录是 'allure-report'，与我们的变量一致，所以无需额外操作。
                 }
 
-                // ---------- Step 5: 发布 HTML 报告 ----------
+                // 使用 publishHTML 发布报告到 Jenkins 页面（可选，插件已经提供了 Allure 链接）
+                // 但为了在构建页面显示 HTML 报告，可以保留
                 publishHTML([
                     reportDir: env.ALLURE_REPORT_DIR,
                     reportFiles: 'index.html',
@@ -205,7 +180,6 @@ pipeline {
         always {
             echo "流水线执行结束"
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
-            archiveArtifacts artifacts: 'reports/allure-report/history/**', allowEmptyArchive: true
         }
 
         success {
