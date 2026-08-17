@@ -125,9 +125,7 @@ pipeline {
         allure includeProperties: false,
                jdk: '',
                results: [[path: 'reports/allure-results']],
-               reportBuildPolicy: 'ALWAYS',
-               config: [[name: 'allure-2.43.0']]
-        echo "✅ Allure 报告已生成，请查看侧边栏 [Allure Report]"
+               reportBuildPolicy: 'ALWAYS'
     }
 }
     }
