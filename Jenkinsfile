@@ -15,17 +15,16 @@ pipeline {
     }
 
     environment {
-        PYTHON_PATH      = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
-        PIP_INDEX_URL    = 'https://pypi.tuna.tsinghua.edu.cn/simple'
-        ALLURE_RESULTS   = 'reports/allure-results'
-        // ⚠️ 不再自定义 report 路径，使用插件默认的 allure-report
+        PYTHON_PATH        = 'C:/Users/27088/AppData/Local/Programs/Python/Python310/python.exe'
+        PIP_INDEX_URL      = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+        ALLURE_RESULTS     = 'reports/allure-results'
         ALLURE_REPORT_NAME = 'AllureReport'
-        MAIL_RECIPIENT   = 'yiming_2333@sina.com'
-        PYTHONIOENCODING = 'utf-8'
-        GIT_URL          = 'https://github.com/yiming2333/api_test.git'
-        GIT_BRANCH       = 'master'
+        MAIL_RECIPIENT     = 'yiming_2333@sina.com'
+        PYTHONIOENCODING   = 'utf-8'
+        GIT_URL            = 'https://github.com/yiming2333/api_test.git'
+        GIT_BRANCH         = 'master'
         GIT_CREDENTIALS_ID = ''
-        REPORT_LINK      = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
+        REPORT_LINK        = "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/"
     }
 
     stages {
@@ -125,22 +124,23 @@ pipeline {
 
         stage('4. 生成 Allure 报告') {
             steps {
-                script {
-                    // ⚠️ 关键修复：
-                    //   1. 移除 report 参数 → 使用默认 allure-report 目录 → 插件历史归档正常工作
-                    //   2. 移除手动 rmdir → clean:true 已足够，避免竞态破坏历史数据
-                    //   3. 移除 publishHTML → 插件自带侧边栏入口，无需冗余发布
+                // ⚠️ 诊断：确认插件是否被 Jenkins 识别
+                echo "Allure plugin class check: ${jenkins.model.Jenkins.instance.pluginManager.plugins.find { it.shortName == 'allure-jenkins-plugin' }?.version ?: 'NOT FOUND'}"
+
+                // ⚠️ 不用 script 包裹，直接调用 allure 步骤
+                // catchError 强制暴露任何被静默吞掉的异常
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                     allure([
                         includeProperties: false,
-                        tool             : 'allure-2.43.0',       // ← 必须加，名称与上面配置一致
+                        tool             : 'allure-2.43.0',
                         jdk              : '',
                         properties       : [],
                         reportBuildPolicy: 'ALWAYS',
-                        results          : [[path: env.ALLURE_RESULTS]],
+                        results          : [[path: 'reports/allure-results']],
                         clean            : true
                     ])
-                    echo "✅ Allure 报告已生成（含趋势图），请查看侧边栏 [Allure Report]"
                 }
+                echo "✅ Allure 步骤执行完毕，请查看侧边栏 [Allure Report]"
             }
         }
     }
