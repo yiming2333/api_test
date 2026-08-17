@@ -66,7 +66,7 @@ pipeline {
         }
 
         stage('1. 拉取代码') {
-            options { retry(3) }
+            options { retry(60) }
             steps {
                 echo "正在从 Git 拉取代码..."
                 script {
