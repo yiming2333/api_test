@@ -10,6 +10,7 @@ class HttpClient:
         self.base_url = base_url
         self.timeout = timeout
         self.session = requests.Session()
+        # hello
         if token:
             self.session.headers["Authorization"] = f"Bearer {token}"
 
