@@ -1,0 +1,14 @@
+{
+  "code": 0,
+  "data": {
+    "address": "\u67e5\u8be2\u6d4b\u8bd5",
+    "created_at": "Tue, 18 Aug 2026 14:39:33 GMT",
+    "id": 12,
+    "order_id": "ORD17870351736141",
+    "product_id": "SKU_QUERY_TEST",
+    "quantity": 1,
+    "status": "pending",
+    "user_id": 10086
+  },
+  "message": "success"
+}

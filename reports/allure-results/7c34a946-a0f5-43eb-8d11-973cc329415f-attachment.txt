@@ -1,0 +1,4 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: GET http://127.0.0.1:5000/api/users/10086/profile
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.046189s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'avatar': 'fk-55ea4c213e73', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}

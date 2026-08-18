@@ -4,7 +4,7 @@ import pytest
 import allure
 from utils.data_loader import load_test_data
 from utils.jsonpath_util import extract_json
-from utils.context_resolver import resolve   # ← 新增
+from utils.context_resolver import resolve
 
 ORDER_QUERY_DATA = load_test_data("order.yaml", "test_order_query")
 
@@ -17,18 +17,14 @@ class TestOrderQuery:
         "case_id, case_data", ORDER_QUERY_DATA,
         ids=[d[0] for d in ORDER_QUERY_DATA]
     )
-    def test_order(self, http, context, request, case_id, case_data):
+    def test_order(self, http, context, request, db, case_id, case_data):
         allure.dynamic.title(f"[{case_id}] {case_data['title']}")
 
-        # ★ 如果声明了 depends_on，动态获取对应 fixture 的返回值
-        #   确保前置 fixture 已执行（pytest 会自动处理依赖顺序）
         if case_data.get("depends_on"):
             request.getfixturevalue(case_data["depends_on"])
 
         req = case_data["request"]
         expect = case_data["expect"]
-
-        # ★ 替换占位符
         resolved_req = resolve(req)
 
         with allure.step(f"发送请求: {resolved_req.get('url', '')}"):
@@ -39,8 +35,7 @@ class TestOrderQuery:
             )
 
         with allure.step(f"断言状态码 == {expect['status_code']}"):
-            assert resp.status_code == expect["status_code"], \
-                f"期望 {expect['status_code']}，实际 {resp.status_code}"
+            assert resp.status_code == expect["status_code"]
 
         for path, expected_value in expect.get("json_path", []):
             with allure.step(f"断言 {path} == {expected_value}"):
@@ -48,25 +43,94 @@ class TestOrderQuery:
                 if expected_value == "not_null":
                     assert actual is not None
                 else:
-                    assert actual == expected_value, \
-                        f"{path} 期望 {expected_value}，实际 {actual}"
+                    assert actual == expected_value
+
+        # DB 校验
+        for check in expect.get("db_check", []):
+            resolved_check = resolve(check)
+            with allure.step(f"DB校验: {resolved_check['table']}.{resolved_check['field']} == {resolved_check['expected']}"):
+                db.assert_field_value(
+                    table=resolved_check["table"],
+                    where=resolved_check["where"],
+                    params=tuple(resolved_check["params"]),
+                    field=resolved_check["field"],
+                    expected=resolved_check["expected"]
+                )
 
 
 @allure.epic("订单中心")
 @allure.feature("订单管理")
 class TestOrder:
 
-    def test_query_order(self, http, context, created_order):
-        """
-        查询订单详情。
-        created_order fixture 已经创建好订单并写入 context，
-        这里直接取 order_id 用。
-        """
-        # 方式一：从 context 取
-        order_id = context.get_or_fail("order_id")
+    def test_create_and_verify_in_db(self, http, context, login_token, db):
+        """创建订单后，验证数据库记录正确落库"""
+        with allure.step("创建订单"):
+            resp = http.post("/api/orders", json={
+                "product_id": "SKU_DB_TEST",
+                "quantity": 3,
+                "address": "数据库校验测试地址"
+            })
+            assert resp.status_code == 201
+            order_id = resp.json()["data"]["order_id"]
 
-        # 方式二：直接用 fixture 返回值（效果一样）
-        # order_id = created_order
+        with allure.step("DB校验：订单记录存在"):
+            db.assert_record_exists(
+                "orders", "order_id = %s", (order_id,),
+                msg=f"订单 {order_id} "
+            )
+
+        with allure.step("DB校验：product_id 正确"):
+            db.assert_field_value(
+                "orders", "order_id = %s", (order_id,),
+                field="product_id", expected="SKU_DB_TEST"
+            )
+
+        with allure.step("DB校验：quantity 正确"):
+            db.assert_field_value(
+                "orders", "order_id = %s", (order_id,),
+                field="quantity", expected=3
+            )
+
+        with allure.step("DB校验：初始状态为 pending"):
+            db.assert_field_value(
+                "orders", "order_id = %s", (order_id,),
+                field="status", expected="pending"
+            )
+
+        # 清理：用 PUT cancel 代替 DELETE（Flask 没有 DELETE 订单路由）
+        http.put(f"/api/orders/{order_id}/cancel")
+
+    def test_cancel_order_updates_db(self, http, context, login_token, db):
+        """取消订单后，验证数据库状态变更（独立创建订单，不与其他用例共享）"""
+        with allure.step("创建待取消的订单"):
+            resp = http.post("/api/orders", json={
+                "product_id": "SKU_CANCEL_TEST",
+                "quantity": 1,
+                "address": "取消测试"
+            })
+            assert resp.status_code == 201
+            order_id = resp.json()["data"]["order_id"]
+
+        with allure.step("取消订单"):
+            resp = http.put(f"/api/orders/{order_id}/cancel")
+            assert resp.status_code == 200
+
+        with allure.step("DB校验：状态变为 cancelled"):
+            db.assert_field_value(
+                "orders", "order_id = %s", (order_id,),
+                field="status", expected="cancelled"
+            )
+
+    def test_query_order_pending(self, http, context, login_token, db):
+        """查询刚创建的订单，状态应为 pending（独立订单，不受其他用例影响）"""
+        with allure.step("创建待查询的订单"):
+            resp = http.post("/api/orders", json={
+                "product_id": "SKU_QUERY_TEST",
+                "quantity": 1,
+                "address": "查询测试"
+            })
+            assert resp.status_code == 201
+            order_id = resp.json()["data"]["order_id"]
 
         with allure.step(f"查询订单 {order_id}"):
             resp = http.get(f"/api/orders/{order_id}")
@@ -74,9 +138,20 @@ class TestOrder:
         assert resp.status_code == 200
         assert resp.json()["data"]["status"] == "pending"
 
-    def test_cancel_order(self, http, context, created_order):
-        """取消订单"""
-        order_id = context.get_or_fail("order_id")
+        # 清理
+        http.put(f"/api/orders/{order_id}/cancel")
+
+    def test_cancel_order_api(self, http, context, login_token):
+        """取消订单接口返回 200（独立订单）"""
+        with allure.step("创建待取消的订单"):
+            resp = http.post("/api/orders", json={
+                "product_id": "SKU_API_TEST",
+                "quantity": 1,
+                "address": "API测试"
+            })
+            assert resp.status_code == 201
+            order_id = resp.json()["data"]["order_id"]
 
         resp = http.put(f"/api/orders/{order_id}/cancel")
         assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "cancelled"

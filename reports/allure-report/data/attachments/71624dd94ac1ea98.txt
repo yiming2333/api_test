@@ -1,0 +1,14 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'username': 'testuser', 'password': 'Test@123'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.060421s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'token': 'mock-jwt-62aae911aab745a2', 'user_id': 10086, 'username': 'testuser'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'product_id': 'SKU_001', 'quantity': 1, 'address': '测试地址'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 201 | 耗时: 0.074791s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'order_id': 'ORD178703517215EB'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD178703517215EB
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.059616s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'address': '测试地址', 'created_at': 'Tue, 18 Aug 2026 14:39:32 GMT', 'id': 9, 'order_id': 'ORD178703517215EB', 'product_id': 'SKU_001', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[32mINFO    [0m api_test:db.py:61 🔍 SQL: SELECT status FROM orders WHERE order_id = %s | 参数: ('ORD178703517215EB',)
+[32mINFO    [0m api_test:db.py:64    返回 1 条记录

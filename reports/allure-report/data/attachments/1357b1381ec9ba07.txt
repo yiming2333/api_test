@@ -1,0 +1,14 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/projects
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'name': '自动化测试项目'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 201 | 耗时: 0.040679s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'id': 'PRJ775D38A9'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/projects/PRJ775D38A9/tasks
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'title': '测试任务', 'priority': 'high'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 201 | 耗时: 0.049883s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'id': 'TSKB3C58EFB'}, 'message': 'success'}
+[32mINFO    [0m api_test:db.py:61 🔍 SQL: SELECT COUNT(*) AS cnt FROM tasks WHERE id = %s AND project_id = %s | 参数: ('TSKB3C58EFB', 'PRJ775D38A9')
+[32mINFO    [0m api_test:db.py:64    返回 1 条记录
+[32mINFO    [0m api_test:db.py:61 🔍 SQL: SELECT priority FROM tasks WHERE id = %s | 参数: ('TSKB3C58EFB',)
+[32mINFO    [0m api_test:db.py:64    返回 1 条记录
+[32mINFO    [0m api_test:db.py:61 🔍 SQL: SELECT status FROM tasks WHERE id = %s | 参数: ('TSKB3C58EFB',)
+[32mINFO    [0m api_test:db.py:64    返回 1 条记录

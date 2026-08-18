@@ -51,15 +51,13 @@ def created_order(http, context, login_token):
             "address": "测试地址"
         })
         assert resp.status_code == 201, f"创建订单失败: {resp.text}"
-
         order_id = resp.json()["data"]["order_id"]
         context.set("order_id", order_id)
-
         yield order_id
 
-        # teardown
-        with allure.step("清理：取消测试订单"):
-            http.delete(f"/api/orders/{order_id}")
+    # teardown：现在 Flask 支持 DELETE 了
+    with allure.step("清理：删除测试订单"):
+        http.delete(f"/api/orders/{order_id}")
 
 
 # ============================================================

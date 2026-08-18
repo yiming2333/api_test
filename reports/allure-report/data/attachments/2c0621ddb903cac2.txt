@@ -1,0 +1,12 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/orders
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'product_id': 'SKU_QUERY_TEST', 'quantity': 1, 'address': '查询测试'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 201 | 耗时: 0.055642s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'order_id': 'ORD17870351736141'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: GET http://127.0.0.1:5000/api/orders/ORD17870351736141
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.052076s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'address': '查询测试', 'created_at': 'Tue, 18 Aug 2026 14:39:33 GMT', 'id': 12, 'order_id': 'ORD17870351736141', 'product_id': 'SKU_QUERY_TEST', 'quantity': 1, 'status': 'pending', 'user_id': 10086}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: PUT http://127.0.0.1:5000/api/orders/ORD17870351736141/cancel
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.027829s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'order_id': 'ORD17870351736141', 'status': 'cancelled'}, 'message': 'success'}

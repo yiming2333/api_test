@@ -1,4 +1,0 @@
-[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
-[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'username': 'testuser', 'password': 'wrong_pwd'}}
-[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 401 | 耗时: 0.022523s
-[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 401, 'data': None, 'message': '用户名或密码错误'}

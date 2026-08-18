@@ -1,0 +1,20 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: GET http://127.0.0.1:5000/api/projects/PRJ775D38A9/tasks/TSKB3C58EFB
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.043312s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': {'created_at': 'Tue, 18 Aug 2026 14:39:34 GMT', 'id': 'TSKB3C58EFB', 'priority': 'high', 'project_id': 'PRJ775D38A9', 'status': 'done', 'title': '测试任务'}, 'message': 'success'}
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: DELETE http://127.0.0.1:5000/api/projects/PRJ775D38A9
+[32mINFO    [0m api_test:http_client.py:30    参数: {}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 200 | 耗时: 0.062929s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 0, 'data': None, 'message': 'success'}
+[32mINFO    [0m api_test:db.py:80 ✏️  SQL: DELETE FROM tasks | 参数: None
+[32mINFO    [0m api_test:db.py:82    影响 0 行
+[32mINFO    [0m conftest:conftest.py:48 🧹 已清理表: tasks
+[32mINFO    [0m api_test:db.py:80 ✏️  SQL: DELETE FROM projects | 参数: None
+[32mINFO    [0m api_test:db.py:82    影响 0 行
+[32mINFO    [0m conftest:conftest.py:48 🧹 已清理表: projects
+[32mINFO    [0m api_test:db.py:80 ✏️  SQL: DELETE FROM orders | 参数: None
+[32mINFO    [0m api_test:db.py:82    影响 4 行
+[32mINFO    [0m conftest:conftest.py:48 🧹 已清理表: orders
+[32mINFO    [0m api_test:db.py:80 ✏️  SQL: DELETE FROM file_uploads | 参数: None
+[32mINFO    [0m api_test:db.py:82    影响 1 行
+[32mINFO    [0m conftest:conftest.py:48 🧹 已清理表: file_uploads

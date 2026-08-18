@@ -1,0 +1,4 @@
+[32mINFO    [0m api_test:http_client.py:29 ➡️  请求: POST http://127.0.0.1:5000/api/auth/login
+[32mINFO    [0m api_test:http_client.py:30    参数: {'json': {'password': 'Test@123'}}
+[32mINFO    [0m api_test:http_client.py:48 ⬅️  状态码: 400 | 耗时: 0.015421s
+[32mINFO    [0m api_test:http_client.py:50    响应体: {'code': 400, 'data': None, 'message': '缺少用户名参数'}
