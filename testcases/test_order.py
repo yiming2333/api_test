@@ -97,8 +97,8 @@ class TestOrder:
                 field="status", expected="pending"
             )
 
-        # 清理：用 PUT cancel 代替 DELETE（Flask 没有 DELETE 订单路由）
-        http.put(f"/api/orders/{order_id}/cancel")
+        # 清理
+        http.delete(f"/api/orders/{order_id}")
 
     def test_cancel_order_updates_db(self, http, context, login_token, db):
         """取消订单后，验证数据库状态变更（独立创建订单，不与其他用例共享）"""
@@ -139,7 +139,7 @@ class TestOrder:
         assert resp.json()["data"]["status"] == "pending"
 
         # 清理
-        http.put(f"/api/orders/{order_id}/cancel")
+        http.delete(f"/api/orders/{order_id}")
 
     def test_cancel_order_api(self, http, context, login_token):
         """取消订单接口返回 200（独立订单）"""
