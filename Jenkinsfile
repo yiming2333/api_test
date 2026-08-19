@@ -13,6 +13,7 @@ pipeline {
         choice(name: 'ENV', choices: ['dev', 'prod'], description: '选择运行环境')
         choice(name: 'MARK', choices: ['all', 'smoke', 'regression'], description: '选择用例标记')
         string(name: 'RERUNS', defaultValue: '3', description: '失败重试次数')
+        choice(name: 'PARALLEL', choices: ['off', 'auto', '2', '4', '8'], description: '并发模式: off=串行, auto=自动检测CPU核心数, 数字=指定worker数')
 
     }
 
@@ -77,8 +78,22 @@ pipeline {
                 script {
                     catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                         def markArg = params.MARK != 'all' ? "-m ${params.MARK}" : ""
-                        // 并发数：auto 或指定数字
-                        def xdistArg = "-n 3"
+                        // 根据用户选择拼接 xdist 参数
+                        def xdistArg = ''
+                        switch (params.PARALLEL) {
+                            case 'off':
+                                xdistArg = ''
+                                echo "📌 串行模式"
+                                break
+                            case 'auto':
+                                xdistArg = '-n auto'
+                                echo "📌 并发模式: auto (自动检测CPU核心数)"
+                                break
+                            default:
+                                xdistArg = "-n ${params.PARALLEL}"
+                                echo "📌 并发模式: ${params.PARALLEL} workers"
+                                break
+                        }
                         bat """
                             chcp 65001
                             "${PYTHON_PATH}" -m pytest ${markArg} ${xdistArg} ^
