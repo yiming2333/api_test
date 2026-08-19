@@ -169,6 +169,7 @@ def sendEmailNotification(String status, String color, String icon) {
             <hr/>
             <p style="font-size: 12px; color: gray;">此邮件由 Jenkins 自动发送，请勿回复。</p>
         """,
-        mimeType: 'text/html'
+        mimeType: 'text/html',
+        debug: true
     )
 }
