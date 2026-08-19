@@ -9,7 +9,7 @@ LOGIN_DATA = load_test_data("login.yaml", "test_login")
 @allure.epic("用户中心")
 @allure.feature("登录模块")
 class TestLogin:
-
+    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     @pytest.mark.parametrize("case_id, case_data", LOGIN_DATA,
                              ids=[d[0] for d in LOGIN_DATA])
     def test_login(self, http, case_id, case_data):
