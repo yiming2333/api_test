@@ -77,9 +77,11 @@ pipeline {
                 script {
                     catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                         def markArg = params.MARK != 'all' ? "-m ${params.MARK}" : ""
+                        // 并发数：auto 或指定数字
+                        def xdistArg = "-n 3"
                         bat """
                             chcp 65001
-                            "${PYTHON_PATH}" -m pytest ${markArg} ^
+                            "${PYTHON_PATH}" -m pytest ${markArg} ${xdistArg} ^
                                 --env=${params.ENV} ^
                                 --alluredir=${ALLURE_RESULTS} ^
                                 --clean-alluredir ^

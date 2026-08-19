@@ -1,57 +1,67 @@
+"""
+mock_flask.py - 并发安全版
+支持 pytest-xdist 多 worker 同时请求
+"""
 from flask import Flask, request, jsonify
 import uuid
 import time
+import threading
 import pymysql
+from dbutils.pooled_db import PooledDB
 
 app = Flask(__name__)
 
 # ============================================================
-#  内存数据存储（模拟数据库，重启后清空）
+#  数据库连接池（关键改造）
 # ============================================================
-_users = {
-    "testuser": {
-        "user_id": 10086,
-        "username": "testuser",
-        "password": "Test@123",
-        "avatar": None
-    }
-}
+DB_POOL = PooledDB(
+    creator=pymysql,
+    maxconnections=20,      # 最大连接数（根据 worker 数调整）
+    mincached=2,            # 初始空闲连接
+    maxcached=5,            # 最大空闲连接
+    blocking=True,          # 连接用完时等待而非报错
+    host='localhost',
+    port=3306,
+    user='root',
+    password='Root@123456',
+    database='api_test',
+    charset='utf8mb4',
+    cursorclass=pymysql.cursors.DictCursor,
+    autocommit=False
+)
 
-_orders = {}          # order_id -> order_dict
-_projects = {}        # project_id -> project_dict
-_tasks = {}           # task_id -> task_dict
-_upload_tokens = {}   # file_key -> file_info
 
-DB_CONFIG = {
-    'host': 'localhost',
-    'port': 3306,
-    'user': 'root',
-    'password': 'Root@123456',
-    'database': 'api_test',
-    'charset': 'utf8mb4',
-    'cursorclass': pymysql.cursors.DictCursor,
-}
 def get_db():
-    """获取数据库连接"""
-    return pymysql.connect(**DB_CONFIG)
+    """从连接池获取连接"""
+    return DB_POOL.connection()
 
 
 # ============================================================
-#  Token 仍然用内存存储（模拟 JWT 无状态特性）
+#  Token 存储（内存 + 线程锁）
 # ============================================================
-_tokens = {}  # token -> user_id
+_tokens = {}
+_token_lock = threading.Lock()
 
+
+def _store_token(token, user_id):
+    with _token_lock:
+        _tokens[token] = user_id
+
+
+def _get_token_user(token):
+    with _token_lock:
+        return _tokens.get(token)
 
 
 # ============================================================
-#  工具函数
+#  认证校验
 # ============================================================
 def _verify_token(req):
     auth_header = req.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return None
     token = auth_header[7:]
-    return _tokens.get(token)
+    return _get_token_user(token)
 
 
 def _require_auth(req):
@@ -61,28 +71,15 @@ def _require_auth(req):
     return user_id, None
 
 
+FAULT_COUNT= 2
+_login_fault_remaining = FAULT_COUNT       # 每次触发消耗的总次数
+_login_fault_counter = FAULT_COUNT         # 当前剩余次数（运行时递减）
 # ============================================================
-#  首页 & 旧表单（保留）
-# ============================================================
-@app.route('/', methods=['GET', 'POST'])
-def home():
-    return '<h1>Home</h1>'
-
-
-@app.route('/signin', methods=['GET'])
-def signin_form():
-    return '''<form action="/signin" method="post">
-              <p><input name="username"></p>
-              <p><input name="password" type="password"></p>
-              <p><button type="submit">Sign In</button></p>
-              </form>'''
-
-
-# ============================================================
-#  认证模块（查库验证用户名密码）
+#  认证模块
 # ============================================================
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
+    global _login_fault_counter
     data = request.get_json(silent=True)
     if not data or 'username' not in data:
         return jsonify({"code": 400, "message": "缺少用户名参数", "data": None}), 400
@@ -103,13 +100,25 @@ def api_login():
 
     if user and user["password"] == password:
         token = f"mock-jwt-{uuid.uuid4().hex[:16]}"
-        _tokens[token] = user["user_id"]
+        _store_token(token, user["user_id"])
         return jsonify({
             "code": 0, "message": "success",
             "data": {"token": token, "user_id": user["user_id"], "username": username}
         }), 200
+    else:
+        if _login_fault_counter > 0:
+            _login_fault_counter -= 1
+            print(f"⚡ [FAULT] 剩余{_login_fault_counter}次")
+            return jsonify({"code": 500, "message": "临时故障", "data": None}), 500
 
-    return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
+        else:
+            # ★ 归零后立刻重置，然后本次请求走正常错误返回
+            _login_fault_counter = _login_fault_remaining
+            # 不 return，继续往下走正常的 400/401 逻辑
+
+        if not data or 'username' not in data:
+            return jsonify({"code": 400, "message": "缺少用户名参数", "data": None}), 400
+        return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
 
 
 # ============================================================
@@ -146,16 +155,13 @@ def update_avatar():
         return jsonify({"code": 400, "message": "缺少file_key", "data": None}), 400
 
     file_key = data["file_key"]
-
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            # 验证 file_key 有效
             cur.execute("SELECT file_key FROM file_uploads WHERE file_key = %s AND user_id = %s",
                         (file_key, uid))
             if not cur.fetchone():
                 return jsonify({"code": 400, "message": "无效的file_key", "data": None}), 400
-
             cur.execute("UPDATE users SET avatar = %s WHERE user_id = %s", (file_key, uid))
         conn.commit()
     finally:
@@ -178,7 +184,6 @@ def get_upload_token():
         return jsonify({"code": 400, "message": "缺少file_name", "data": None}), 400
 
     file_key = f"fk-{uuid.uuid4().hex[:12]}"
-
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -205,7 +210,6 @@ def commit_file():
         return jsonify({"code": 400, "message": "缺少file_key", "data": None}), 400
 
     file_key = data["file_key"]
-
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -222,11 +226,11 @@ def commit_file():
         return jsonify({"code": 400, "message": "无效的file_key", "data": None}), 400
 
     return jsonify({"code": 0, "message": "success",
-                     "data": {"file_key": file_key, "status": "committed"}}), 200
+                    "data": {"file_key": file_key, "status": "committed"}}), 200
 
 
 # ============================================================
-#  订单模块（写入真实数据库）
+#  订单模块
 # ============================================================
 @app.route('/api/orders', methods=['POST'])
 def create_order():
@@ -239,7 +243,6 @@ def create_order():
         return jsonify({"code": 400, "message": "缺少product_id", "data": None}), 400
 
     order_id = f"ORD{int(time.time())}{uuid.uuid4().hex[:4].upper()}"
-
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -301,7 +304,8 @@ def cancel_order(order_id):
         return jsonify({"code": 404, "message": "订单不存在", "data": None}), 404
 
     return jsonify({"code": 0, "message": "success",
-                     "data": {"order_id": order_id, "status": "cancelled"}}), 200
+                    "data": {"order_id": order_id, "status": "cancelled"}}), 200
+
 
 @app.route('/api/orders/<order_id>', methods=['DELETE'])
 def delete_order(order_id):
@@ -341,7 +345,6 @@ def create_project():
         return jsonify({"code": 400, "message": "缺少name", "data": None}), 400
 
     project_id = f"PRJ{uuid.uuid4().hex[:8].upper()}"
-
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -462,9 +465,9 @@ def update_task(project_id, task_id):
                         f"UPDATE tasks SET {', '.join(updates)} WHERE id = %s AND project_id = %s",
                         values
                     )
-            conn.commit()
+        conn.commit()
 
-            # 重新查询返回最新数据
+        with conn.cursor() as cur:
             cur.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
             updated = cur.fetchone()
     finally:
@@ -473,5 +476,19 @@ def update_task(project_id, task_id):
     return jsonify({"code": 0, "message": "success", "data": updated}), 200
 
 
+# ============================================================
+#  首页
+# ============================================================
+@app.route('/', methods=['GET'])
+def home():
+    return '<h1>Mock API Server (Concurrent Safe)</h1>'
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # ★ 关键：关闭 debug，开启多线程
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=False,          # 生产模式，不开 reloader
+        threaded=True         # 每个请求一个线程，支持并发
+    )

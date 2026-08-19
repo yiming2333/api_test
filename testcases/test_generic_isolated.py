@@ -1,0 +1,80 @@
+# testcases/test_generic_isolated.py
+
+import pytest
+import allure
+from utils.data_loader import load_test_data
+from utils.jsonpath_util import extract_json
+
+
+def _resolve_template(template: str, context: dict) -> str:
+    """简易模板替换：${setup.order_id} → context['setup']['order_id']"""
+    import re
+    def _replace(m):
+        keys = m.group(1).split(".")
+        val = context
+        for k in keys:
+            val = val[k]
+        return str(val)
+    return re.sub(r'\$\{(.+?)\}', _replace, template)
+
+
+def _execute_request(http, req_config, context):
+    """执行单个请求配置"""
+    url = _resolve_template(req_config["url"], context)
+    method = req_config["method"]
+    kwargs = {}
+    if "json" in req_config:
+        kwargs["json"] = req_config["json"]
+    if "params" in req_config:
+        kwargs["params"] = req_config["params"]
+
+    resp = getattr(http, method)(url, **kwargs)
+    return resp
+
+
+ORDER_ISO_DATA = load_test_data("order.yaml", "test_order_isolated")
+
+
+@allure.epic("订单中心")
+@allure.feature("隔离数据驱动")
+class TestOrderIsolated:
+
+    @pytest.mark.parametrize("case_id, case_data", ORDER_ISO_DATA,
+                             ids=[d[0] for d in ORDER_ISO_DATA])
+    def test_order_flow(self, logged_in_http, case_id, case_data):
+        """每条用例：setup → request → assert → teardown，完全自包含"""
+        allure.dynamic.title(f"[{case_id}] {case_data['title']}")
+        context = {}
+
+        try:
+            # Setup
+            if "setup" in case_data:
+                setup_resp = _execute_request(logged_in_http, case_data["setup"], context)
+                assert setup_resp.status_code in (200, 201), \
+                    f"Setup失败: {setup_resp.text}"
+                context["setup"] = setup_resp.json().get("data", {})
+
+            # Request
+            req = case_data["request"]
+            url = _resolve_template(req["url"], context)
+            method = req["method"]
+            kwargs = {k: v for k, v in req.items() if k in ("json", "params", "data", "headers")}
+            resp = getattr(logged_in_http, method)(url, **kwargs)
+
+            # Assert
+            expect = case_data["expect"]
+            assert resp.status_code == expect["status_code"]
+            for path, expected_value in expect.get("json_path", []):
+                actual = extract_json(resp.json(), path)
+                if expected_value == "not_null":
+                    assert actual is not None
+                else:
+                    assert actual == expected_value
+
+        finally:
+            # Teardown（无论成功失败都清理）
+            if "teardown" in case_data and context:
+                try:
+                    _execute_request(logged_in_http, case_data["teardown"], context)
+                except Exception:
+                    pass  # 清理失败不影响用例结果

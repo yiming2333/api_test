@@ -1,48 +1,49 @@
-# config/testdata/order.yaml
-
-test_order_query:
-  - case_id: ORDER_001
-    title: "查询已创建的订单"
-    depends_on: created_order
+# ✅ 解耦版：每条用例自带 setup/teardown
+test_order_isolated:
+  - case_id: ORDER_ISO_001
+    title: "创建订单后查询"
+    setup:                              # ← 自己创建
+      method: post
+      url: /api/orders
+      json:
+        product_id: "SKU_ISO_001"
+        quantity: 1
     request:
       method: get
-      url: "/api/orders/${order_id}"
+      url: "/api/orders/${setup.order_id}"
     expect:
       status_code: 200
-      json_path:
-        - ["$.data.status", "pending"]
-      # ★ 新增：数据库校验声明
       db_check:
         - table: orders
           where: "order_id = %s"
-          params: ["${order_id}"]
+          params: [ "${setup.order_id}" ]
           field: status
           expected: "pending"
+      json_path:
+        - ["$.data.status", "pending"]
+    teardown:                           # ← 自己清理
+      method: delete
+      url: "/api/orders/${setup.order_id}"
 
-  - case_id: ORDER_002
+  - case_id: ORDER_ISO_002
     title: "取消订单并验证DB"
-    depends_on: created_order
+    setup:
+      method: post
+      url: /api/orders
+      json:
+        product_id: "SKU_ISO_002"
+        quantity: 1
     request:
       method: put
-      url: "/api/orders/${order_id}/cancel"
+      url: "/api/orders/${setup.order_id}/cancel"
     expect:
       status_code: 200
       db_check:
         - table: orders
           where: "order_id = %s"
-          params: ["${order_id}"]
+          params: ["${setup.order_id}"]
           field: status
           expected: "cancelled"
-
-test_file_upload:
-  - case_id: FILE_001
-    title: "用凭证提交文件"
-    depends_on: upload_credential
-    request:
-      method: post
-      url: "/api/files/commit"
-      json:
-        file_key: "${file_key}"       # ← 占位符
-        file_name: "test.png"
-    expect:
-      status_code: 200
+    teardown:
+      method: delete
+      url: "/api/orders/${setup.order_id}"
