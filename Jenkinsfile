@@ -12,6 +12,8 @@ pipeline {
     parameters {
         choice(name: 'ENV', choices: ['dev', 'prod'], description: '选择运行环境')
         choice(name: 'MARK', choices: ['all', 'smoke', 'regression'], description: '选择用例标记')
+        string(name: 'RERUNS', defaultValue: '3', description: '失败重试次数')
+
     }
 
     environment {
@@ -81,6 +83,8 @@ pipeline {
                                 --env=${params.ENV} ^
                                 --alluredir=${ALLURE_RESULTS} ^
                                 --clean-alluredir ^
+                                --reruns ${params.RERUNS} ^
+                                --reruns-delay 3 ^
                                 -v
                         """
                     }
