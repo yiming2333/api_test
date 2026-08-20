@@ -4,6 +4,7 @@ import json
 from urllib3.util.retry import Retry  # 重试策略配置
 from requests.adapters import HTTPAdapter  # 请求适配器（挂载重试策略到 Session）
 from common.logger import log  # 项目统一日志模块
+from common.yaml_handler import get_config
 
 
 class HttpClient:
@@ -23,7 +24,7 @@ class HttpClient:
         assert resp.status_code == 200
     """
 
-    def __init__(self, base_url, timeout=10, token=None):
+    def __init__(self, base_url, env="dev",timeout=10, token=None):
         """
         初始化 HTTP 客户端
 
@@ -35,8 +36,9 @@ class HttpClient:
             token:    JWT Token（可选），登录成功后传入
                       会自动添加到每个请求的 Authorization 头中
         """
+        _cfg = get_config(env)
         self.base_url = base_url
-        self.timeout = timeout
+        self.timeout = _cfg.get("timeout", timeout)
 
         # 使用 Session 而非裸 requests.get/post 的好处：
         # 1. 自动保持 Cookie（如果服务端用 Cookie 鉴权）
@@ -59,7 +61,7 @@ class HttpClient:
         # 加了重试 → 自动等一会儿再试，减少 flaky test
 
         retry = Retry(
-            total=2,  # 最多重试 2 次（加上原始请求，总共最多发 3 次）
+            total=_cfg.get("retry", 2),  # 最多重试 2 次（加上原始请求，总共最多发 3 次）
             backoff_factor=0.5,  # 退避因子：第 1 次重试等 0.5s，第 2 次等 1.0s
             # 计算公式：{backoff_factor} * (2 ** (retry_count - 1))
             # 即：0.5s → 1.0s → 2.0s ...

@@ -13,7 +13,8 @@ pipeline {
         choice(name: 'ENV',      choices: ['dev', 'prod'],                description: '选择运行环境')
         choice(name: 'MARK',     choices: ['all', 'smoke', 'regression'], description: '选择用例标记')
         string(name: 'RERUNS',   defaultValue: '3',                       description: '失败重试次数')
-        choice(name: 'PARALLEL', choices: ['off', 'auto', '2', '4', '8'], description: '并发模式: off=串行, auto=自动检测CPU核心数, 数字=指定worker数')
+        string(name: 'RERUNS_DELAY',   defaultValue: '1',                 description: '失败重试间隔（秒）')
+        choice(name: 'PARALLEL', choices: ['off', 'auto', '2', '3','4','5', '10'], description: '并发模式: off=串行, auto=自动检测CPU核心数, 数字=指定worker数')
     }
 
     environment {
@@ -106,7 +107,7 @@ pipeline {
                                 --alluredir=${ALLURE_RESULTS} ^
                                 --clean-alluredir ^
                                 --reruns ${params.RERUNS} ^
-                                --reruns-delay 3 ^
+                                --reruns-delay ${params.RERUNS_DELAY} ^
                                 -v
                         """
                     }
@@ -141,7 +142,7 @@ pipeline {
                         buildOrder : env.BUILD_NUMBER.toInteger(),
                         buildName  : "#${env.BUILD_NUMBER}",
                         buildUrl   : "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/",
-                        reportUrl  : "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}/${ALLURE_REPORT_NAME}/",
+                        reportUrl  : "${REPORT_LINK}",
                         reportName : ALLURE_REPORT_NAME
                     ]
                     def jsonStr = JsonOutput.toJson(executorData)

@@ -6,6 +6,8 @@ env:
     db_port: 3306
     db_user: "root"
     db_password: "Root@123456"
+    timeout: 10
+    retry: 2
   prod:
     base_url: "https://api.example.com"
     db_host: "10.0.0.1"
@@ -13,5 +15,3 @@ env:
     db_user: "readonly"
     db_password: "xxx"
 
-timeout: 10
-retry: 2
