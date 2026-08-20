@@ -41,7 +41,7 @@ class TestOrderIsolated:
 
     @pytest.mark.parametrize("case_id, case_data", ORDER_ISO_DATA,
                              ids=[d[0] for d in ORDER_ISO_DATA])
-    def test_order_flow(self, logged_in_http, case_id, case_data):
+    def test_order_flow(self, logged_in_http, db, case_id, case_data):
         """每条用例：setup → request → assert → teardown，完全自包含"""
         allure.dynamic.title(f"[{case_id}] {case_data['title']}")
         context = {}
@@ -70,6 +70,21 @@ class TestOrderIsolated:
                     assert actual is not None
                 else:
                     assert actual == expected_value
+
+            # DB 校验
+            for check in expect.get("db_check", []):
+                with allure.step(f"DB校验: {check['table']}.{check['field']} == {check['expected']}"):
+                    # 解析 where 中的模板变量，如 ${setup.order_id}
+                    where = _resolve_template(check["where"], context)
+                    # 解析 params 中的模板变量
+                    params = tuple(
+                        _resolve_template(p, context) if isinstance(p, str) and p.startswith("$") else p
+                        for p in check["params"]
+                    )
+                    db.assert_field_value(
+                        check["table"], where, params,
+                        field=check["field"], expected=check["expected"]
+                    )
 
         finally:
             # Teardown（无论成功失败都清理）
