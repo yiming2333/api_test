@@ -8,24 +8,27 @@ import time
 import threading
 import pymysql
 from dbutils.pooled_db import PooledDB
+from common.yaml_handler import get_config
 
 app = Flask(__name__)
 
 # ============================================================
-#  数据库连接池（关键改造）
+#  数据库连接池（从 config.yaml 读取配置）
 # ============================================================
+_cfg = get_config("dev")  # Mock 服务固定用 dev 环境
+
 DB_POOL = PooledDB(
     creator=pymysql,
     maxconnections=20,      # 最大连接数（根据 worker 数调整）
     mincached=2,            # 初始空闲连接
     maxcached=5,            # 最大空闲连接
     blocking=True,          # 连接用完时等待而非报错
-    host='localhost',
-    port=3306,
-    user='root',
-    password='Root@123456',
-    database='api_test',
-    charset='utf8mb4',
+    host=_cfg.get("db_host", "localhost"),
+    port=_cfg.get("db_port", 3306),
+    user=_cfg.get("db_user", "root"),
+    password=_cfg.get("db_password", ""),
+    database="api_test",
+    charset="utf8mb4",
     cursorclass=pymysql.cursors.DictCursor,
     autocommit=False
 )

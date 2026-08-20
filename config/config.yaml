@@ -2,10 +2,10 @@
 env:
   dev:
     base_url: "http://127.0.0.1:5000"   # ← 改为本地 Flask 地址
-    db_host: "192.168.1.100"
+    db_host: "localhost"
     db_port: 3306
-    db_user: "test"
-    db_password: "test123"
+    db_user: "root"
+    db_password: "Root@123456"
   prod:
     base_url: "https://api.example.com"
     db_host: "10.0.0.1"
