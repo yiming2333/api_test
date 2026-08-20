@@ -15,9 +15,9 @@ from common.logger import log
 # 从 config.yaml 读取，避免硬编码
 from common.yaml_handler import get_config
 
-def _build_pool(database="api_test"):
+def _build_pool(database="api_test", env="dev"):
     """根据 config.yaml 构建连接池"""
-    cfg = get_config()  # 默认 dev 环境
+    cfg = get_config(env)
     return PooledDB(
         creator=pymysql,
         maxconnections=20,       # 最大连接数
@@ -40,22 +40,23 @@ def _build_pool(database="api_test"):
 # ============================================================
 _pool = None
 
-def _get_pool():
+def _get_pool(env="dev"):
     global _pool
     if _pool is None:
-        _pool = _build_pool()
+        _pool = _build_pool(env=env)
     return _pool
 
 
 class DBClient:
     """轻量级数据库客户端，基于 PooledDB 连接池"""
 
-    def __init__(self, database=None):
+    def __init__(self, database=None, env="dev"):
         self.database = database
+        self.env = env
 
     def _get_connection(self):
         """从连接池获取连接"""
-        pool = _get_pool()
+        pool = _get_pool(self.env)
         return pool.connection()
 
     @contextmanager

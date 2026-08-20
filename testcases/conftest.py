@@ -87,3 +87,5 @@ def fresh_upload_token(logged_in_http):
         file_key = resp.json()["data"]["file_key"]
 
     yield file_key
+
+    # teardown：提交凭证后由 DB 自然过期，无需额外清理

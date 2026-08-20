@@ -51,7 +51,7 @@ def logged_in_http(http):
 
 
 @pytest.fixture(scope="session")
-def db():
-    """全局数据库客户端"""
-    from utils.db import db as db_client
-    return db_client
+def db(env_name):
+    """全局数据库客户端（跟随 --env 参数选择环境）"""
+    from utils.db import DBClient
+    return DBClient(env=env_name)

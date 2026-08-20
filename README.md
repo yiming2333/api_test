@@ -39,7 +39,7 @@ api_test/
 ├── utils/                      # 工具类
 │   ├── data_loader.py          # 测试数据加载器
 │   ├── jsonpath_util.py        # 简易 JSONPath 提取
-│   └── db.py                   # 数据库操作客户端
+│   └── db.py                   # 数据库操作客户端（PooledDB 连接池）
 ├── mock_flask.py               # Mock API 服务（并发安全）
 ├── init.sql                    # 数据库建表 + 种子数据
 ├── conftest.py                 # 全局 fixture（HTTP 客户端、登录、DB）
@@ -115,7 +115,17 @@ python mock_flask.py
 
 服务默认运行在 `http://127.0.0.1:5000`，使用多线程模式处理并发请求。
 
-Mock 服务会连接本地 MySQL（`localhost:3306`，用户 `root`，密码 `Root@123456`，数据库 `api_test`）。如果你的 MySQL 配置不同，需要修改 `mock_flask.py` 中的 `DB_POOL` 配置。
+数据库连接配置统一从 `config/config.yaml` 的 `dev` 环境读取，不需要修改 `mock_flask.py`。如果你的 MySQL 配置不同，只需修改 `config.yaml`：
+
+```yaml
+env:
+  dev:
+    base_url: "http://127.0.0.1:5000"
+    db_host: "localhost"
+    db_port: 3306
+    db_user: "root"
+    db_password: "你的密码"
+```
 
 ### 4. 运行测试
 
@@ -147,11 +157,22 @@ allure serve reports/allure-results
 env:
   dev:
     base_url: "http://127.0.0.1:5000"
-    timeout: 10
+    db_host: "localhost"
+    db_port: 3306
+    db_user: "root"
+    db_password: "Root@123456"
   prod:
     base_url: "https://api.example.com"
-    timeout: 15
+    db_host: "10.0.0.1"
+    db_port: 3306
+    db_user: "readonly"
+    db_password: "xxx"
+
+timeout: 10
+retry: 2
 ```
+
+所有组件（HTTP 客户端、Mock 服务、数据库客户端）统一从这里读取配置，改密码只改一处。
 
 通过 `--env` 参数切换环境：
 
@@ -202,15 +223,15 @@ class TestOrder:
         logged_in_http.delete(f"/api/orders/{order_id}")
 ```
 
-### 数据驱动
+### 数据驱动 + 动态标记
 
-在 `config/testdata/` 下创建 YAML 数据文件：
+在 `config/testdata/` 下创建 YAML 数据文件，支持 `mark` 字段自动打 pytest 标记：
 
 ```yaml
 test_login:
   - case_id: "login_001"
     title: "正常登录"
-    mark: smoke
+    mark: smoke                    # ← 自动打 @pytest.mark.smoke
     request:
       method: post
       url: /api/auth/login
@@ -222,20 +243,79 @@ test_login:
       json_path:
         - ["$.code", 0]
         - ["$.data.token", "not_null"]
+
+  - case_id: "login_002"
+    title: "密码错误返回401"
+    mark: regression               # ← 自动打 @pytest.mark.regression
+    request:
+      method: post
+      url: /api/auth/login
+      json:
+        username: "testuser"
+        password: "wrong_pwd"
+    expect:
+      status_code: 401
 ```
 
-用例中加载并参数化：
+用例中加载并参数化，`mark` 字段会自动映射为 pytest 标记：
 
 ```python
 from utils.data_loader import load_test_data
 
-LOGIN_DATA = load_test_data("login.yaml", "test_login")
+LOGIN_RAW = load_test_data("login.yaml", "test_login")
 
-@pytest.mark.parametrize("case_id, case_data", LOGIN_DATA,
-                         ids=[d[0] for d in LOGIN_DATA])
+# 根据 YAML 中的 mark 字段动态打标
+LOGIN_DATA = []
+for case_id, case_data in LOGIN_RAW:
+    mark_name = case_data.get("mark")
+    if mark_name:
+        LOGIN_DATA.append(
+            pytest.param(case_id, case_data, id=case_id,
+                         marks=getattr(pytest.mark, mark_name))
+        )
+    else:
+        LOGIN_DATA.append(pytest.param(case_id, case_data, id=case_id))
+
+@pytest.mark.parametrize("case_id, case_data", LOGIN_DATA)
 def test_login(self, http, case_id, case_data):
     ...
 ```
+
+这样 `pytest -m smoke` 就能找到 YAML 中标记了 `mark: smoke` 的用例。
+
+### YAML 数据驱动 + DB 校验
+
+`test_generic_isolated.py` 支持在 YAML 中定义完整的测试流程：setup → request → json_path 断言 → db_check 数据库断言 → teardown。
+
+```yaml
+test_order_isolated:
+  - case_id: ORDER_ISO_001
+    title: "创建订单后查询"
+    setup:
+      method: post
+      url: /api/orders
+      json:
+        product_id: "SKU_ISO_001"
+        quantity: 1
+    request:
+      method: get
+      url: "/api/orders/${setup.order_id}"    # ← 模板变量，引用 setup 返回的数据
+    expect:
+      status_code: 200
+      json_path:
+        - ["$.data.status", "pending"]
+      db_check:                                # ← 数据库校验
+        - table: orders
+          where: "order_id = %s"
+          params: ["${setup.order_id}"]        # ← 模板变量也支持在 params 中使用
+          field: status
+          expected: "pending"
+    teardown:
+      method: delete
+      url: "/api/orders/${setup.order_id}"
+```
+
+模板变量 `${setup.order_id}` 会自动替换为 setup 阶段返回的 JSON 数据中的值。如果变量不存在，会抛出明确的错误信息，指出哪个路径解析失败以及当前可用的 context keys。
 
 ### 隔离数据工厂
 
@@ -254,7 +334,7 @@ def test_query_order(self, fresh_order, logged_in_http):
 |---------|------|
 | `http` | 未登录的 HTTP 客户端 |
 | `logged_in_http` | 已登录的 HTTP 客户端（session 级，每个 worker 登录一次） |
-| `db` | 数据库客户端 |
+| `db` | 数据库客户端（跟随 `--env` 参数选择环境） |
 | `fresh_order` | 独立订单（自动创建 + 清理） |
 | `fresh_project` | 独立项目（自动创建 + 清理） |
 | `fresh_task` | 独立任务（依赖 fresh_project） |
@@ -350,7 +430,7 @@ Pipeline 构建完成后自动发送：
 
 ### 数据库校验
 
-`utils/db.py` 提供了轻量级数据库操作客户端：
+`utils/db.py` 基于 PooledDB 连接池，数据库配置从 `config.yaml` 读取：
 
 ```python
 # 查询多条
@@ -409,6 +489,15 @@ pytest -n 4       # 指定 worker 数
 
 > **注意**：并发模式下数据库连接数会随 worker 数增加，确保 MySQL 的 `max_connections` 足够（默认 151，一般够用）。
 
+### Mock 服务故障注入
+
+`mock_flask.py` 内置了故障注入机制（`FAULT_COUNT=2`），登录接口前 2 次错误请求会返回 500 而非 401，用于模拟服务临时故障场景。
+
+这意味着：
+- **LOGIN_002（密码错误）** 用例会先触发 500，靠 `--reruns` 重试后才拿到 401 通过
+- 这是预期行为，验证了框架的重试机制在服务抖动时仍能正常工作
+- 如果要测试纯业务逻辑（不关心故障注入），可以将 `FAULT_COUNT` 设为 `0`
+
 ## 数据库表结构
 
 `init.sql` 创建的表结构如下：
@@ -452,7 +541,7 @@ file_uploads
 
 **Q: 启动 mock_flask.py 报 `pymysql.err.OperationalError: Can't connect to MySQL`？**
 
-确认 MySQL 已启动，且 `mock_flask.py` 中的数据库连接配置（host/port/user/password）正确。默认连接 `localhost:3306`，用户 `root`，密码 `Root@123456`，数据库 `api_test`。
+确认 MySQL 已启动，且 `config/config.yaml` 中 `dev` 环境的数据库配置（db_host/db_port/db_user/db_password）正确。
 
 **Q: 报 `Table 'api_test.xxx' doesn't exist`？**
 
@@ -468,6 +557,10 @@ SELECT * FROM users;
 ```
 
 应该有 `testuser` / `Test@123` 的记录。如果没有，重新执行 `init.sql`。
+
+**Q: LOGIN_002（密码错误）先返回 500 再重试才通过？**
+
+这是 `mock_flask.py` 故障注入机制的预期行为。登录接口前 2 次错误请求会返回 500 模拟服务故障，`pytest.ini` 中的 `--reruns 2` 会自动重试。如果不想触发故障注入，将 `mock_flask.py` 中的 `FAULT_COUNT` 改为 `0`。
 
 **Q: Allure 报告样式错乱？**
 
@@ -487,7 +580,7 @@ Pipeline 中已用 `catchError` 包裹测试阶段，保证报告阶段继续执
 pytest --env=prod
 ```
 
-对应 `config/config.yaml` 中的 `env.prod` 配置。
+对应 `config/config.yaml` 中的 `env.prod` 配置。数据库和 HTTP 客户端都会跟随切换。
 
 ## License
 
