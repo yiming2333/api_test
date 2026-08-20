@@ -17,7 +17,8 @@ def _resolve_template(template: str, context: dict) -> str:
                 val = val[k]
             else:
                 raise KeyError(
-                    f"模板变量 ${{{m.group(1)}}} 解析失败: "{n                    f"路径 '{k}' 在 context 中不存在。"
+                    f"模板变量 ${{{m.group(1)}}} 解析失败: "
+                    f"路径 '{k}' 在 context 中不存在。"
                     f"当前 context keys: {list(context.keys()) if context else '空（setup 可能未执行）'}"
                 )
         return str(val)
