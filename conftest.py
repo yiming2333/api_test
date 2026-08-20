@@ -46,6 +46,7 @@ def logged_in_http(http):
     # 通过 fixture 的 request 对象存储，方便后续取 user_id
     http._user_id = user_id
     http._token = token
+    http._username = "testuser"
 
     return http
 

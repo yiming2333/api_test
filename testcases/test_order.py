@@ -10,25 +10,27 @@ class TestOrder:
 
     def test_create_order(self, logged_in_http, db):
         """创建订单 + DB校验（自包含）"""
-        with allure.step("创建订单"):
-            resp = logged_in_http.post("/api/orders", json={
-                "product_id": "SKU_CREATE_001",
-                "quantity": 2,
-                "address": "创建测试"
-            })
-            assert resp.status_code == 201
-            order_id = resp.json()["data"]["order_id"]
+        order_id=None
+        try:
+            with allure.step("创建订单"):
+                resp = logged_in_http.post("/api/orders", json={
+                    "product_id": "SKU_CREATE_001",
+                    "quantity": 2,
+                    "address": "创建测试"
+                })
+                assert resp.status_code == 201
+                order_id = resp.json()["data"]["order_id"]
 
-        with allure.step("DB校验：记录存在且字段正确"):
-            db.assert_field_value("orders", "order_id = %s", (order_id,),
-                                  field="product_id", expected="SKU_CREATE_001")
-            db.assert_field_value("orders", "order_id = %s", (order_id,),
-                                  field="quantity", expected=2)
-            db.assert_field_value("orders", "order_id = %s", (order_id,),
-                                  field="status", expected="pending")
-
-        # 自己清理
-        logged_in_http.delete(f"/api/orders/{order_id}")
+            with allure.step("DB校验：记录存在且字段正确"):
+                db.assert_field_value("orders", "order_id = %s", (order_id,),
+                                      field="product_id", expected="SKU_CREATE_001")
+                db.assert_field_value("orders", "order_id = %s", (order_id,),
+                                      field="quantity", expected=2)
+                db.assert_field_value("orders", "order_id = %s", (order_id,),
+                                      field="status", expected="pending")
+        finally:
+            # 自己清理
+            logged_in_http.delete(f"/api/orders/{order_id}")
 
     def test_query_order(self, fresh_order, logged_in_http):
         """查询订单（用 fixture 创建的独立订单）"""

@@ -4,6 +4,8 @@ import pytest
 import allure
 from utils.data_loader import load_test_data
 from utils.jsonpath_util import extract_json
+from common.logger import log
+
 
 
 def _resolve_template(template: str, context: dict) -> str:
@@ -98,5 +100,8 @@ class TestOrderIsolated:
             if "teardown" in case_data and context:
                 try:
                     _execute_request(logged_in_http, case_data["teardown"], context)
-                except Exception:
-                    pass  # 清理失败不影响用例结果
+                except Exception as e:
+                    log.warning(
+                        "[%s] Teardown 失败（已忽略）: %s", case_id, e,
+                        exc_info=True  # 保留完整堆栈，方便排查
+                    )

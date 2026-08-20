@@ -73,6 +73,57 @@ def _require_auth(req):
         return None, (jsonify({"code": 401, "message": "未登录或token已过期", "data": None}), 401)
     return user_id, None
 
+# ============================================================
+#  用户注册（无需认证，幂等）
+# ============================================================
+@app.route('/api/auth/register', methods=['POST'])
+def api_register():
+    data = request.get_json(silent=True)
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({"code": 400, "message": "缺少 username 或 password", "data": None}), 400
+
+    username = data['username']
+    password = data['password']
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            # 幂等：先查是否已存在
+            cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+            existing = cur.fetchone()
+
+            if existing:
+                user_id = existing["user_id"]
+            else:
+                # 取当前最大 user_id + 1
+                cur.execute("SELECT COALESCE(MAX(user_id), 10000) AS max_uid FROM users")
+                new_uid = cur.fetchone()["max_uid"] + 1
+
+                try:
+                    cur.execute(
+                        "INSERT INTO users (user_id, username, password) VALUES (%s, %s, %s)",
+                        (new_uid, username, password)
+                    )
+                    conn.commit()
+                    user_id = new_uid
+                except pymysql.err.IntegrityError:
+                    # 并发竞争：另一个 worker 同时插入了同名用户或相同 user_id
+                    conn.rollback()
+                    cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+                    row = cur.fetchone()
+                    if not row:
+                        return jsonify({"code": 500, "message": "注册异常", "data": None}), 500
+                    user_id = row["user_id"]
+    finally:
+        conn.close()
+
+    token = f"mock-jwt-{uuid.uuid4().hex[:16]}"
+    _store_token(token, user_id)
+
+    return jsonify({
+        "code": 0, "message": "success",
+        "data": {"user_id": user_id, "username": username, "token": token}
+    }), 200
 
 FAULT_COUNT= 2
 _login_fault_remaining = FAULT_COUNT       # 每次触发消耗的总次数

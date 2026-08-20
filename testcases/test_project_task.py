@@ -10,17 +10,21 @@ class TestProjectTask:
 
     def test_create_project(self, logged_in_http, db):
         """创建项目 + DB校验"""
-        with allure.step("创建项目"):
-            resp = logged_in_http.post("/api/projects", json={"name": "独立项目A"})
-            assert resp.status_code == 201
-            project_id = resp.json()["data"]["id"]
+        project_id = None
 
-        with allure.step("DB校验"):
-            db.assert_field_value("projects", "id = %s", (project_id,),
-                                  field="name", expected="独立项目A")
+        try:
+            with allure.step("创建项目"):
+                resp = logged_in_http.post("/api/projects", json={"name": "独立项目A"})
+                assert resp.status_code == 201
+                project_id = resp.json()["data"]["id"]
 
-        # 清理
-        logged_in_http.delete(f"/api/projects/{project_id}")
+            with allure.step("DB校验"):
+                db.assert_field_value("projects", "id = %s", (project_id,),
+                                      field="name", expected="独立项目A")
+        finally:
+            # ✅ 无论成功还是断言失败，都会执行清理
+            if project_id:
+                logged_in_http.delete(f"/api/projects/{project_id}")
 
     def test_create_task_in_project(self, fresh_project, logged_in_http, db):
         """在项目中创建任务（独立项目）"""
