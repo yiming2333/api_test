@@ -81,7 +81,18 @@ pipeline {
                 echo "探测 Mock 服务，未运行则自动启动..."
                 bat """
                     chcp 65001
-                    "${PYTHON_PATH}" scripts/ensure_mock.py --env ${params.ENV}
+                    "${PYTHON_PATH}" scripts/ensure_mock.py start --env ${params.ENV}
+                """
+            }
+        }
+
+        stage('2.6 重置测试数据') {
+            when { expression { params.ENV == 'dev' } }
+            steps {
+                echo "清理上一次可能残留的业务数据（orders/projects/tasks/file_uploads）..."
+                bat """
+                    chcp 65001
+                    "${PYTHON_PATH}" scripts/ensure_mock.py reset-db --env ${params.ENV}
                 """
             }
         }
@@ -175,7 +186,18 @@ pipeline {
 
     post {
         always {
-            echo "流水线执行结束"
+            echo "流水线执行结束，清理资源..."
+            // dev 环境显式停止 Mock 服务（无论成功/失败/中断都要跑，失败也不影响构建结果）
+            script {
+                if (params.ENV == 'dev') {
+                    catchError(buildResult: null, stageResult: null, message: "停止 Mock 失败但不影响构建结果") {
+                        bat """
+                            chcp 65001 >nul
+                            "${PYTHON_PATH}" scripts/ensure_mock.py stop --env ${params.ENV}
+                        """
+                    }
+                }
+            }
             archiveArtifacts artifacts: 'logs/*.log', allowEmptyArchive: true
         }
         success {

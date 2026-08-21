@@ -278,6 +278,31 @@ def commit_file():
                     "data": {"file_key": file_key, "status": "committed"}}), 200
 
 
+@app.route('/api/files/<file_key>', methods=['DELETE'])
+def delete_file(file_key):
+    """删除上传记录（归属权校验：只能删自己的）。用于集成测试 teardown 清理。"""
+    uid, err = _require_auth(request)
+    if err:
+        return err
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM file_uploads WHERE file_key = %s AND user_id = %s",
+                (file_key, uid)
+            )
+            affected = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+
+    if affected == 0:
+        return jsonify({"code": 404, "message": "文件不存在或不属于当前用户", "data": None}), 404
+
+    return jsonify({"code": 0, "message": "success", "data": None}), 200
+
+
 # ============================================================
 #  订单模块
 # ============================================================

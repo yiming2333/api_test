@@ -79,7 +79,8 @@ def fresh_task(logged_in_http, fresh_project):
 
 @pytest.fixture()
 def fresh_upload_token(logged_in_http):
-    """每条用例独立的上传凭证"""
+    """每条用例独立的上传凭证：自动创建 → yield → 自动 DELETE 清理。"""
+    file_key = None
     with allure.step("前置：获取上传凭证"):
         resp = logged_in_http.post("/api/files/upload-token", json={
             "file_name": "isolated_test.png",
@@ -90,13 +91,19 @@ def fresh_upload_token(logged_in_http):
 
     yield file_key
 
-    # teardown：提交凭证后由 DB 自然过期，无需额外清理
+    with allure.step("清理：删除上传记录"):
+        if file_key:
+            # 不 assert，避免之前用例失败时 teardown 再报错掩盖原问题
+            logged_in_http.delete(f"/api/files/{file_key}")
 
 
 @pytest.fixture
 def another_user_file_key(http):
-    """创建/获取 user_b 的 upload token。"""
+    """创建/获取 user_b 的 upload token，用例结束后 DELETE 清理。"""
     account = get_account("user_b")
+    user_b_token = None
+    file_key = None
+
     with allure.step(f"注册用户 {account['username']}（幂等）"):
         resp = http.post("/api/auth/register", json={
             "username": account["username"],
@@ -104,12 +111,22 @@ def another_user_file_key(http):
         })
         assert resp.status_code == 200, f"注册失败: {resp.text}"
         user_b_token = resp.json()["data"]["token"]
+        auth_header = {"Authorization": f"Bearer {user_b_token}"}
 
     with allure.step(f"获取 {account['username']} 的 upload token"):
         resp2 = http.post(
             "/api/files/upload-token",
             json={"file_name": "b_test.png", "file_type": "png"},
-            headers={"Authorization": f"Bearer {user_b_token}"},
+            headers=auth_header,
         )
         assert resp2.status_code == 200, f"获取 upload-token 失败: {resp2.text}"
-        yield resp2.json()["data"]["file_key"]
+        file_key = resp2.json()["data"]["file_key"]
+
+    yield file_key
+
+    with allure.step(f"清理：删除 {account['username']} 的上传记录"):
+        if file_key and user_b_token:
+            http.delete(
+                f"/api/files/{file_key}",
+                headers={"Authorization": f"Bearer {user_b_token}"},
+            )

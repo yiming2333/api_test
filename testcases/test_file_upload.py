@@ -10,13 +10,19 @@ class TestFileUpload:
 
     @pytest.mark.smoke
     def test_get_upload_token(self, logged_in_http):
-        """获取上传凭证"""
-        resp = logged_in_http.post("/api/files/upload-token", json={
-            "file_name": "test_doc.pdf",
-            "file_type": "application/pdf"
-        })
-        assert resp.status_code == 200
-        assert resp.json()["data"]["file_key"] is not None
+        """获取上传凭证，用例结束后 DELETE 清理"""
+        file_key = None
+        try:
+            resp = logged_in_http.post("/api/files/upload-token", json={
+                "file_name": "test_doc.pdf",
+                "file_type": "application/pdf"
+            })
+            assert resp.status_code == 200
+            file_key = resp.json()["data"]["file_key"]
+            assert file_key is not None
+        finally:
+            if file_key:
+                logged_in_http.delete(f"/api/files/{file_key}")
 
     def test_commit_file(self, logged_in_http, fresh_upload_token):
         """用凭证提交文件"""
