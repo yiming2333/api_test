@@ -1,7 +1,6 @@
 # conftest.py（根目录）
 
 import pytest
-import requests
 
 from common.http_client import HttpClient
 from common.yaml_handler import get_config
@@ -15,26 +14,6 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def env_name(request):
     return request.config.getoption("--env")
-
-
-@pytest.fixture(scope="session", autouse=True)
-def verify_api_ready(env_name):
-    """运行前探测 API 是否可用，给出明确提示。"""
-    cfg = get_config(env_name)
-    base_url = cfg["base_url"].rstrip("/")
-    try:
-        resp = requests.get(f"{base_url}/", timeout=5)
-        if resp.status_code != 200:
-            pytest.exit(
-                f"API 未就绪: GET {base_url}/ 返回 {resp.status_code}。"
-                f"请确认服务已启动（dev 环境: python mock_flask.py）。"
-            )
-    except requests.RequestException as exc:
-        pytest.exit(
-            f"无法连接 API: {base_url}\n"
-            f"原因: {exc}\n"
-            f"dev 环境请先执行: python scripts/ensure_mock.py --env dev"
-        )
 
 
 @pytest.fixture(scope="session")
