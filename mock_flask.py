@@ -7,31 +7,12 @@ import uuid
 import time
 import threading
 import pymysql
-from dbutils.pooled_db import PooledDB
-from common.yaml_handler import get_config
+from common.db_pool import get_pool
 
 app = Flask(__name__)
 
-# ============================================================
-#  数据库连接池（从 config.yaml 读取配置）
-# ============================================================
-_cfg = get_config("dev")  # Mock 服务固定用 dev 环境
-
-DB_POOL = PooledDB(
-    creator=pymysql,
-    maxconnections=20,      # 最大连接数（根据 worker 数调整）
-    mincached=2,            # 初始空闲连接
-    maxcached=5,            # 最大空闲连接
-    blocking=True,          # 连接用完时等待而非报错
-    host=_cfg.get("db_host", "localhost"),
-    port=_cfg.get("db_port", 3306),
-    user=_cfg.get("db_user", "root"),
-    password=_cfg.get("db_password", ""),
-    database="api_test",
-    charset="utf8mb4",
-    cursorclass=pymysql.cursors.DictCursor,
-    autocommit=False
-)
+# Mock 服务固定使用 dev 环境数据库
+DB_POOL = get_pool(env="dev", autocommit=False)
 
 
 def get_db():
@@ -125,15 +106,35 @@ def api_register():
         "data": {"user_id": user_id, "username": username, "token": token}
     }), 200
 
-FAULT_COUNT= 2
-_login_fault_remaining = FAULT_COUNT       # 每次触发消耗的总次数
-_login_fault_counter = FAULT_COUNT         # 当前剩余次数（运行时递减）
+# ============================================================
+#  故障注入（并发安全：按用户名隔离 + 线程锁）
+# ============================================================
+# 每个用户名独立维护一份故障配额，多 worker 并发请求互不干扰。
+FAULT_COUNT = 2
+_fault_lock = threading.Lock()
+_fault_counters = {}   # username -> 剩余可注入次数
+
+
+def _consume_fault(username):
+    """线程安全地消耗一次故障配额。
+
+    返回 (injected, remaining):
+      injected  - True 表示本次注入故障（应返回 500）
+      remaining - 消耗后剩余可注入次数（仅供日志展示）
+    """
+    with _fault_lock:
+        remaining = _fault_counters.get(username, FAULT_COUNT)
+        if remaining > 0:
+            _fault_counters[username] = remaining - 1
+            return True, remaining - 1
+        return False, 0
+
+
 # ============================================================
 #  认证模块
 # ============================================================
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    global _login_fault_counter
     data = request.get_json(silent=True)
     if not data or 'username' not in data:
         return jsonify({"code": 400, "message": "缺少用户名参数", "data": None}), 400
@@ -159,20 +160,14 @@ def api_login():
             "code": 0, "message": "success",
             "data": {"token": token, "user_id": user["user_id"], "username": username}
         }), 200
-    else:
-        if _login_fault_counter > 0:
-            _login_fault_counter -= 1
-            print(f"⚡ [FAULT] 剩余{_login_fault_counter}次")
-            return jsonify({"code": 500, "message": "临时故障", "data": None}), 500
 
-        else:
-            # ★ 归零后立刻重置，然后本次请求走正常错误返回
-            _login_fault_counter = _login_fault_remaining
-            # 不 return，继续往下走正常的 400/401 逻辑
+    # 密码错误：先尝试故障注入（按用户名隔离，并发安全）
+    injected, remaining = _consume_fault(username)
+    if injected:
+        print(f"⚡ [FAULT] {username} 剩余故障 {remaining} 次")
+        return jsonify({"code": 500, "message": "临时故障", "data": None}), 500
 
-        if not data or 'username' not in data:
-            return jsonify({"code": 400, "message": "缺少用户名参数", "data": None}), 400
-        return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
+    return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
 
 
 # ============================================================
@@ -422,8 +417,16 @@ def delete_project(project_id):
     conn = get_db()
     try:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM tasks WHERE project_id = %s", (project_id,))
-            cur.execute("DELETE FROM projects WHERE id = %s AND user_id = %s", (project_id, uid))
+            # ✅ 先级联删除该项目下的所有任务
+            cur.execute(
+                "DELETE FROM tasks WHERE project_id = %s",
+                (project_id,)
+            )
+            # 再删除项目本身
+            cur.execute(
+                "DELETE FROM projects WHERE id = %s AND user_id = %s",
+                (project_id, uid),
+            )
         conn.commit()
     finally:
         conn.close()

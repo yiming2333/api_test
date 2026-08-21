@@ -75,6 +75,17 @@ pipeline {
             }
         }
 
+        stage('2.5 确保 Mock 服务') {
+            when { expression { params.ENV == 'dev' } }
+            steps {
+                echo "探测 Mock 服务，未运行则自动启动..."
+                bat """
+                    chcp 65001
+                    "${PYTHON_PATH}" scripts/ensure_mock.py --env ${params.ENV}
+                """
+            }
+        }
+
         stage('3. 执行测试') {
             steps {
                 echo "开始执行 Pytest 测试..."
@@ -198,11 +209,18 @@ def notifyAll(String status, String color, String icon) {
 }
 
 // ================================================================
-//  根据环境参数返回 base_url
+//  根据环境参数返回 base_url（读取 config/config.yaml）
 // ================================================================
 def getBaseUrl(String envName) {
-    def urls = ['dev': 'http://127.0.0.1:5000', 'prod': 'https://api.example.com']
-    return urls[envName] ?: 'unknown'
+    def output = bat(
+        script: """
+            @echo off
+            chcp 65001 >nul
+            "${env.PYTHON_PATH}" -c "from common.yaml_handler import get_config; print(get_config('${envName}')['base_url'])"
+        """,
+        returnStdout: true
+    ).trim()
+    return output.readLines().last()
 }
 
 // ================================================================

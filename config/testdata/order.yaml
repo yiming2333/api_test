@@ -2,6 +2,7 @@
 test_order_isolated:
   - case_id: ORDER_ISO_001
     title: "创建订单后查询"
+    mark: smoke
     setup:                              # ← 自己创建
       method: post
       url: /api/orders

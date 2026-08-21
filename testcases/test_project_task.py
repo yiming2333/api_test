@@ -8,6 +8,7 @@ import allure
 @allure.feature("项目与任务")
 class TestProjectTask:
 
+    @pytest.mark.smoke
     def test_create_project(self, logged_in_http, db):
         """创建项目 + DB校验"""
         project_id = None

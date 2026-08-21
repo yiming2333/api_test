@@ -9,6 +9,7 @@ class TestProfile:
     # ==================== 查询 ====================
 
     @allure.story("获取个人信息")
+    @pytest.mark.smoke
     def test_get_profile(self, logged_in_http):
         """正向：获取当前用户信息，验证返回字段完整性"""
         resp = logged_in_http.get(f"/api/users/{logged_in_http._user_id}/profile")
@@ -26,11 +27,12 @@ class TestProfile:
         assert resp.status_code == 404
 
     @allure.story("获取个人信息")
-    def test_get_profile_unauthorized(self, http):
-        """安全：未登录访问 → 401"""
-        # http 是原始 client，没有 Authorization header
-        # 用已知的 testuser 的 user_id (10086)
-        resp = http.get("/api/users/10086/profile",headers={"Authorization":f"Bearer http._acc401"})
+    def test_get_profile_unauthorized(self, http, logged_in_http):
+        """安全：无效 token → 401"""
+        resp = http.get(
+            f"/api/users/{logged_in_http._user_id}/profile",
+            headers={"Authorization": "Bearer invalid-token"},
+        )
         assert resp.status_code == 401
 
     # ==================== 更新头像 ====================

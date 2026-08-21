@@ -1,3 +1,4 @@
+# config/testdata/login.yaml
 test_login:
   - case_id: LOGIN_001
     title: "正确账号密码登录成功"
@@ -6,8 +7,8 @@ test_login:
       method: post
       url: /api/auth/login
       json:
-        username: testuser
-        password: Test@123
+        username: "${accounts.default.username}"
+        password: "${accounts.default.password}"
     expect:
       status_code: 200
       json_path:
@@ -21,7 +22,7 @@ test_login:
       method: post
       url: /api/auth/login
       json:
-        username: testuser
+        username: "${accounts.default.username}"
         password: wrong_pwd
     expect:
       status_code: 401
@@ -35,6 +36,6 @@ test_login:
       method: post
       url: /api/auth/login
       json:
-        password: Test@123
+        password: "${accounts.default.password}"
     expect:
       status_code: 400

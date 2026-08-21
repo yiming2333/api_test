@@ -8,6 +8,7 @@ import allure
 @allure.feature("订单管理")
 class TestOrder:
 
+    @pytest.mark.smoke
     def test_create_order(self, logged_in_http, db):
         """创建订单 + DB校验（自包含）"""
         order_id=None
@@ -29,9 +30,10 @@ class TestOrder:
                 db.assert_field_value("orders", "order_id = %s", (order_id,),
                                       field="status", expected="pending")
         finally:
-            # 自己清理
-            logged_in_http.delete(f"/api/orders/{order_id}")
+            if order_id:
+                logged_in_http.delete(f"/api/orders/{order_id}")
 
+    @pytest.mark.smoke
     def test_query_order(self, fresh_order, logged_in_http):
         """查询订单（用 fixture 创建的独立订单）"""
         with allure.step(f"查询订单 {fresh_order}"):

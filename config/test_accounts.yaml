@@ -1,0 +1,8 @@
+# 测试账号统一配置（conftest / YAML 数据驱动共用）
+accounts:
+  default:
+    username: testuser
+    password: Test@123
+  user_b:
+    username: user_b
+    password: pass_b_123

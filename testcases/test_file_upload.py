@@ -1,12 +1,14 @@
 # testcases/test_file_upload.py
 
 import allure
+import pytest
 
 
 @allure.epic("文件管理")
 @allure.feature("文件上传")
 class TestFileUpload:
 
+    @pytest.mark.smoke
     def test_get_upload_token(self, logged_in_http):
         """获取上传凭证"""
         resp = logged_in_http.post("/api/files/upload-token", json={

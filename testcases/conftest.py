@@ -3,6 +3,8 @@
 import pytest
 import allure
 
+from utils.accounts import get_account
+
 
 @pytest.fixture(autouse=True)
 def case_boundary(request):
@@ -90,29 +92,24 @@ def fresh_upload_token(logged_in_http):
 
     # teardown：提交凭证后由 DB 自然过期，无需额外清理
 
-# conftest.py
 
 @pytest.fixture
 def another_user_file_key(http):
-    """
-    创建/获取 user_b 的 upload token。
-    用 http（原始 client）调注册接口，因为注册无需认证。
-    """
-    with allure.step("注册用户 user_b（幂等）"):
+    """创建/获取 user_b 的 upload token。"""
+    account = get_account("user_b")
+    with allure.step(f"注册用户 {account['username']}（幂等）"):
         resp = http.post("/api/auth/register", json={
-            "username": "user_b",
-            "password": "pass_b_123"
+            "username": account["username"],
+            "password": account["password"],
         })
         assert resp.status_code == 200, f"注册失败: {resp.text}"
-        data = resp.json()["data"]
-        user_b_token = data["token"]
+        user_b_token = resp.json()["data"]["token"]
 
-    with allure.step("获取 user_b 的 upload token"):
-        # 用 user_b 的 token 构造临时 headers，不改 http 全局状态
+    with allure.step(f"获取 {account['username']} 的 upload token"):
         resp2 = http.post(
             "/api/files/upload-token",
             json={"file_name": "b_test.png", "file_type": "png"},
-            headers={"Authorization": f"Bearer {user_b_token}"}
+            headers={"Authorization": f"Bearer {user_b_token}"},
         )
         assert resp2.status_code == 200, f"获取 upload-token 失败: {resp2.text}"
         yield resp2.json()["data"]["file_key"]

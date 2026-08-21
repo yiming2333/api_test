@@ -1,7 +1,7 @@
 # 多环境配置，通过命令行参数切换
 env:
   dev:
-    base_url: "http://127.0.0.1:5000"   # ← 改为本地 Flask 地址
+    base_url: "http://127.0.0.1:5000"
     db_host: "localhost"
     db_port: 3306
     db_user: "root"
@@ -14,4 +14,5 @@ env:
     db_port: 3306
     db_user: "readonly"
     db_password: "xxx"
-
+    timeout: 15
+    retry: 3
