@@ -381,10 +381,16 @@ def notifyAll(String status, String color, String icon) {
 
 // ================================================================
 //  根据环境参数返回 base_url（读取 config/config.yaml）
+//  ★ 注意：Windows CMD 下 python -c 后面必须用双引号包裹整段代码！
+//          否则空格会被拆成多个参数，Python 只收到第一个单词就报错
 // ================================================================
 def getBaseUrl(String envName) {
     def output = bat(
-        script: pythonCmd('-c', """from common.yaml_handler import get_config; print(get_config('${envName}')['base_url'])"""),
+        script: """
+            @echo off
+            chcp 65001 >nul
+            "${env.PYTHON_PATH}" -c "from common.yaml_handler import get_config; print(get_config('${envName}')['base_url'])"
+        """.stripIndent().trim(),
         returnStdout: true
     ).trim()
     return output.readLines().last()
