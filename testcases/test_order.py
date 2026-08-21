@@ -11,7 +11,7 @@ class TestOrder:
     @pytest.mark.smoke
     def test_create_order(self, logged_in_http, db):
         """创建订单 + DB校验（自包含）"""
-        order_id=None
+        order_id = None
         try:
             with allure.step("创建订单"):
                 resp = logged_in_http.post("/api/orders", json={

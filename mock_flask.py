@@ -8,6 +8,7 @@ import time
 import threading
 import pymysql
 from common.db_pool import get_pool
+from common.logger import log
 
 app = Flask(__name__)
 
@@ -164,9 +165,10 @@ def api_login():
     # 密码错误：先尝试故障注入（按用户名隔离，并发安全）
     injected, remaining = _consume_fault(username)
     if injected:
-        print(f"⚡ [FAULT] {username} 剩余故障 {remaining} 次")
+        log.warning(f"⚡ [FAULT] 用户 {username} 触发故障注入，剩余 {remaining} 次")
         return jsonify({"code": 500, "message": "临时故障", "data": None}), 500
 
+    log.info(f"🔑 登录失败（用户名或密码错误）: username={username}")
     return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
 
 
@@ -566,13 +568,14 @@ def api_ping():
     """轻量健康检查：返回服务状态+DB连通性（不做重操作，避免影响探测性能）。"""
     db_ok = True
     try:
-        conn = POOL.connection()
+        conn = DB_POOL.connection()
         cur = conn.cursor()
         cur.execute("SELECT 1")
         cur.fetchone()
         cur.close()
         conn.close()
-    except Exception:
+    except Exception as exc:
+        log.error(f"/api/ping DB 健康检查失败: {exc}")
         db_ok = False
     status = "ok" if db_ok else "db_error"
     return jsonify({
@@ -593,6 +596,7 @@ def home():
 
 if __name__ == '__main__':
     # ★ 关键：关闭 debug，开启多线程
+    log.info("🚀 Mock API Server 启动中: host=0.0.0.0 port=5000 threaded=True")
     app.run(
         host='0.0.0.0',
         port=5000,

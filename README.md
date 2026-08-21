@@ -22,31 +22,38 @@ api_test/
 ├── common/                     # 公共模块
 │   ├── http_client.py          # requests 封装（重试、日志、Allure 附件）
 │   ├── logger.py               # 日志模块（控制台 + 按天滚动文件）
-│   └── yaml_handler.py         # YAML 配置读取
+│   ├── yaml_handler.py         # YAML 配置读取
+│   ├── db_pool.py              # 共享 MySQL 连接池（mock + 测试共用）
+│   └── sanitize.py             # 敏感字段脱敏（密码/token 不入报告）
 ├── config/
 │   ├── config.yaml             # 多环境配置（dev/prod）
+│   ├── test_accounts.yaml      # 测试账号统一配置（conftest 与 YAML 数据驱动共用）
 │   └── testdata/               # 测试数据（YAML）
 │       ├── login.yaml
 │       └── order.yaml
 ├── testcases/                  # 测试用例
-│   ├── conftest.py             # 业务级 fixture（数据工厂）
-│   ├── test_login.py           # 登录模块
-│   ├── test_order.py           # 订单模块
-│   ├── test_profile.py         # 个人信息模块
-│   ├── test_project_task.py    # 项目与任务模块
+│   ├── conftest.py             # 业务级 fixture（独立数据工厂 + 用户隔离）
+│   ├── test_login.py           # 登录模块（YAML 数据驱动）
+│   ├── test_order.py           # 订单模块（DB 校验）
+│   ├── test_profile.py         # 个人信息模块（含跨用户安全校验）
+│   ├── test_project_task.py    # 项目与任务模块（级联删除）
 │   ├── test_file_upload.py     # 文件上传模块
-│   └── test_generic_isolated.py # 通用隔离数据驱动用例
+│   └── test_generic_isolated.py # 隔离数据驱动用例 + 多用户身份隔离
 ├── utils/                      # 工具类
-│   ├── data_loader.py          # 测试数据加载器
+│   ├── data_loader.py          # 测试数据加载器（自动 mark 映射）
+│   ├── case_runner.py          # YAML 用例执行引擎（模板解析/setup/teardown）
 │   ├── jsonpath_util.py        # 简易 JSONPath 提取
-│   └── db.py                   # 数据库操作客户端（PooledDB 连接池）
-├── mock_flask.py               # Mock API 服务（并发安全）
+│   ├── accounts.py             # 测试账号加载（lru_cache）
+│   └── db.py                   # 数据库操作客户端（基于共享连接池）
+├── scripts/
+│   └── ensure_mock.py          # Mock 生命周期管理（start/stop/status/reset-db/db-status）
+├── mock_flask.py               # Mock API 服务（多线程 + 线程锁并发安全）
 ├── init.sql                    # 数据库建表 + 种子数据
-├── conftest.py                 # 全局 fixture（HTTP 客户端、登录、DB）
+├── conftest.py                 # 全局 fixture（http / logged_in_http / db）
 ├── pytest.ini                  # pytest 配置
 ├── Jenkinsfile                 # Jenkins Pipeline 脚本
 ├── requirements.txt            # Python 依赖
-└── main.py                     # 入口（未使用，可删除）
+└── README.md
 ```
 
 ## 技术栈
@@ -109,11 +116,37 @@ mysql -u root -p
 
 ### 3. 启动 Mock 服务
 
+**方式一：直接启动**（适合本地调试，前台运行可看日志）
+
 ```bash
 python mock_flask.py
 ```
 
-服务默认运行在 `http://127.0.0.1:5000`，使用多线程模式处理并发请求。
+**方式二：用 `ensure_mock.py` 托管**（推荐，Jenkins 也用这种方式）
+
+```bash
+# 检查并启动（已运行则直接退出 0；未运行则后台启动并等待就绪）
+python scripts/ensure_mock.py start --env dev
+
+# 检查服务状态（exit 0=正常，exit 1=未响应）
+python scripts/ensure_mock.py status --env dev
+
+# 停止服务（按 PID 文件 → 按端口占用兜底清理）
+python scripts/ensure_mock.py stop --env dev
+
+# 清空业务表残留（orders/projects/tasks/file_uploads，保留 users）
+python scripts/ensure_mock.py reset-db --env dev
+
+# 打印各表数据量快照（不清空，用于失败时诊断现场）
+python scripts/ensure_mock.py db-status --env dev
+```
+
+> **prod 环境跳过所有 Mock 相关操作**：`ensure_mock.py` 检测到 `env != dev` 会直接退出 0，便于同一套 Jenkinsfile 在 prod 环境只跑接口测试不启 Mock。
+
+服务默认运行在 `http://127.0.0.1:5000`，使用多线程模式处理并发请求。Mock 服务提供两个探测端点：
+
+- `GET /` — 首页，返回简单 HTML（`ensure_mock.py status` 用它判断是否存活）
+- `GET /api/ping` — 健康检查，返回 `{"status": "ok", "service": "mock_api"}` 并附带 DB 连通性检测
 
 数据库连接配置统一从 `config/config.yaml` 的 `dev` 环境读取，不需要修改 `mock_flask.py`。如果你的 MySQL 配置不同，只需修改 `config.yaml`：
 
@@ -180,15 +213,48 @@ retry: 2
 pytest --env=prod
 ```
 
+### 测试账号配置 `config/test_accounts.yaml`
+
+集中管理测试账号，conftest.py 的 fixture 与 YAML 数据驱动用例**共用同一份账号**，避免散落维护：
+
+```yaml
+accounts:
+  default:                # ← 主测试用户（默认 session 级 logged_in_http 用）
+    username: testuser
+    password: Test@123
+  user_b:                  # ← 备用账号（new_user fixture 用，注册时附随机后缀）
+    username: user_b
+    password: pass_b_123
+```
+
+代码侧通过 `utils/accounts.py` 读取：
+
+```python
+from utils.accounts import get_account
+
+account = get_account("default")     # → {"username": "testuser", "password": "Test@123"}
+```
+
+YAML 数据驱动用例中通过模板变量引用（由 `utils/case_runner.py` 解析）：
+
+```yaml
+json:
+  username: "${accounts.default.username}"
+  password: "${accounts.default.password}"
+```
+
 ### pytest 配置 `pytest.ini`
 
 | 配置项 | 说明 |
 |--------|------|
 | `testpaths` | 用例目录：`testcases` |
+| `python_files` | 测试文件匹配：`test_*.py` |
+| `python_classes` | 测试类匹配：`Test*`（无参构造） |
+| `python_functions` | 测试函数匹配：`test_*` |
 | `markers` | 自定义标记：`smoke`（冒烟）、`regression`（回归） |
-| `addopts` | 默认参数：`-v -s --alluredir=./reports/allure-results --reruns 2 --reruns-delay 3` |
+| `addopts` | 默认参数：`-v -s --alluredir=./reports/allure-results --reruns 2 --reruns-delay 1 --env=dev` |
 
-> `--reruns 2` 表示失败用例自动重试 2 次，间隔 3 秒。这是全局默认值，命令行参数可以覆盖。
+> `--reruns 2 --reruns-delay 1` 表示失败用例自动重试 2 次，间隔 1 秒。`--env=dev` 是默认环境，命令行 `--env=prod` 可覆盖。所有 addopts 参数都可被命令行覆盖。
 
 ## 编写用例
 
@@ -225,73 +291,66 @@ class TestOrder:
 
 ### 数据驱动 + 动态标记
 
-在 `config/testdata/` 下创建 YAML 数据文件，支持 `mark` 字段自动打 pytest 标记：
+在 `config/testdata/` 下创建 YAML 数据文件，支持 `mark` 字段自动打 pytest 标记，并支持 `${accounts.xxx}` 模板变量引用 `test_accounts.yaml` 中的账号：
 
 ```yaml
 test_login:
-  - case_id: "login_001"
-    title: "正常登录"
+  - case_id: LOGIN_001
+    title: "正确账号密码登录成功"
     mark: smoke                    # ← 自动打 @pytest.mark.smoke
     request:
       method: post
       url: /api/auth/login
       json:
-        username: "testuser"
-        password: "Test@123"
+        username: "${accounts.default.username}"   # ← 引用 test_accounts.yaml
+        password: "${accounts.default.password}"
     expect:
       status_code: 200
       json_path:
         - ["$.code", 0]
-        - ["$.data.token", "not_null"]
+        - ["$.data.token", "not_null"]             # ← 内置匹配器：非空校验
 
-  - case_id: "login_002"
+  - case_id: LOGIN_002
     title: "密码错误返回401"
     mark: regression               # ← 自动打 @pytest.mark.regression
     request:
       method: post
       url: /api/auth/login
       json:
-        username: "testuser"
-        password: "wrong_pwd"
+        username: "${accounts.default.username}"
+        password: wrong_pwd
     expect:
       status_code: 401
+      json_path:
+        - ["$.message", "用户名或密码错误"]
 ```
 
-用例中加载并参数化，`mark` 字段会自动映射为 pytest 标记：
+用例侧只需一行加载，`mark` 字段会自动映射为 pytest 标记：
 
 ```python
-from utils.data_loader import load_test_data
+from utils.case_runner import run_simple_case
+from utils.data_loader import load_parametrize_data
 
-LOGIN_RAW = load_test_data("login.yaml", "test_login")
-
-# 根据 YAML 中的 mark 字段动态打标
-LOGIN_DATA = []
-for case_id, case_data in LOGIN_RAW:
-    mark_name = case_data.get("mark")
-    if mark_name:
-        LOGIN_DATA.append(
-            pytest.param(case_id, case_data, id=case_id,
-                         marks=getattr(pytest.mark, mark_name))
-        )
-    else:
-        LOGIN_DATA.append(pytest.param(case_id, case_data, id=case_id))
+LOGIN_DATA = load_parametrize_data("login.yaml", "test_login")
 
 @pytest.mark.parametrize("case_id, case_data", LOGIN_DATA)
 def test_login(self, http, case_id, case_data):
-    ...
+    allure.dynamic.title(f"[{case_id}] {case_data['title']}")
+    run_simple_case(http, case_data)
 ```
 
-这样 `pytest -m smoke` 就能找到 YAML 中标记了 `mark: smoke` 的用例。
+这样 `pytest -m smoke` 就能找到 YAML 中标记了 `mark: smoke` 的用例。`run_simple_case` 是无 setup/teardown 的单请求执行器，适合登录这类无副作用的接口。
 
 ### YAML 数据驱动 + DB 校验
 
-`test_generic_isolated.py` 支持在 YAML 中定义完整的测试流程：setup → request → json_path 断言 → db_check 数据库断言 → teardown。
+`test_generic_isolated.py` 中的 `TestOrderIsolated` 用 `run_flow_case` 执行器跑完整流程：setup → request → json_path 断言 → db_check 数据库断言 → teardown。setup 返回的 JSON 数据会写入 context，后续 request / db_check / teardown 可通过 `${setup.xxx}` 引用。
 
 ```yaml
 test_order_isolated:
   - case_id: ORDER_ISO_001
     title: "创建订单后查询"
-    setup:
+    mark: smoke
+    setup:                              # ← 前置：创建订单
       method: post
       url: /api/orders
       json:
@@ -310,16 +369,42 @@ test_order_isolated:
           params: ["${setup.order_id}"]        # ← 模板变量也支持在 params 中使用
           field: status
           expected: "pending"
-    teardown:
+    teardown:                           # ← 清理：删除订单（失败会记 warning，不中断）
       method: delete
       url: "/api/orders/${setup.order_id}"
 ```
 
-模板变量 `${setup.order_id}` 会自动替换为 setup 阶段返回的 JSON 数据中的值。如果变量不存在，会抛出明确的错误信息，指出哪个路径解析失败以及当前可用的 context keys。
+用例侧调用：
 
-### 隔离数据工厂
+```python
+from utils.case_runner import run_flow_case
+from utils.data_loader import load_parametrize_data
 
-`testcases/conftest.py` 提供了 function 级 fixture，每条用例独立创建、独立清理，天然并发安全：
+ORDER_ISO_DATA = load_parametrize_data("order.yaml", "test_order_isolated")
+
+@pytest.mark.parametrize("case_id, case_data", ORDER_ISO_DATA)
+def test_order_flow(self, logged_in_http, db, case_id, case_data):
+    allure.dynamic.title(f"[{case_id}] {case_data['title']}")
+    run_flow_case(logged_in_http, case_data, db=db, case_id=case_id)
+```
+
+**模板变量解析规则**（由 `utils/case_runner.py` 实现）：
+
+- `${accounts.default.username}` → 引用 `test_accounts.yaml` 中的账号
+- `${setup.order_id}` → 引用 setup 阶段返回 JSON 的 `data.order_id` 字段
+- 支持 str / list / dict 递归解析（任何层级的字符串字段都可含模板）
+- 如果变量路径不存在，抛出 `KeyError` 并指明失败的路径 + 当前可用 context keys（如 `['accounts', 'setup']`）
+
+**`expect.json_path` 匹配器**：
+
+- 普通值 → 严格相等（`==`）
+- `"not_null"` → 仅校验非 None（适合 token 等动态字段）
+
+**`expect.db_check` 数据库断言**：列表，每项含 `table / where / params / field / expected` 五个键，参数走 `%s` 占位符防注入。
+
+### 隔离数据工厂 & 用户身份隔离
+
+`testcases/conftest.py` 提供两类 fixture：**业务数据工厂**（用 default 用户身份造数据）和**用户身份隔离**（每条用例注册全新用户、独立 HttpClient 实例）。所有 fixture 都是 function 级，每条用例独立创建、独立清理，天然并发安全。
 
 ```python
 def test_query_order(self, fresh_order, logged_in_http):
@@ -328,17 +413,40 @@ def test_query_order(self, fresh_order, logged_in_http):
     assert resp.status_code == 200
 ```
 
-可用的 fixture：
+**可用的 fixture**：
 
-| Fixture | 说明 |
-|---------|------|
-| `http` | 未登录的 HTTP 客户端 |
-| `logged_in_http` | 已登录的 HTTP 客户端（session 级，每个 worker 登录一次） |
-| `db` | 数据库客户端（跟随 `--env` 参数选择环境） |
-| `fresh_order` | 独立订单（自动创建 + 清理） |
-| `fresh_project` | 独立项目（自动创建 + 清理） |
-| `fresh_task` | 独立任务（依赖 fresh_project） |
-| `fresh_upload_token` | 独立上传凭证 |
+| Fixture | 作用域 | 说明 |
+|---------|--------|------|
+| `case_boundary` | function (autouse) | 每条用例打印分隔线（含 worker_id），纯日志无状态 |
+| `http` | session | 未登录的 HTTP 客户端（每个 worker 一份） |
+| `logged_in_http` | session | 已登录的 HTTP 客户端（用 default 账号，session 级，登录一次） |
+| `db` | session | 数据库客户端（跟随 `--env` 参数选择环境） |
+| `user_http` | function | 独立 HttpClient 实例（与 session 级 http 完全隔离，用例结束自动 close） |
+| `new_user` | function | 注册一个随机用户（username 加 uuid 后缀），返回 `{token, user_id, username, auth_header}`；teardown 从 DB 按外键依赖逐表清理 |
+| `authed_user_http` | function | `user_http + new_user` 组合体：独立实例上设置新用户 token，调用方拿到的 client 已带 Authorization header |
+| `fresh_order` | function | 独立订单（default 用户身份创建，用例结束 DELETE 清理） |
+| `fresh_project` | function | 独立项目（default 用户身份，自动 DELETE 清理） |
+| `fresh_task` | function | 独立任务（依赖 `fresh_project`，task 随 project 级联删除） |
+| `fresh_upload_token` | function | 独立上传凭证（default 用户身份，teardown 调 `DELETE /api/files/<file_key>`） |
+| `another_user_file_key` | function | 以**新用户身份**获取 upload token（复用 `authed_user_http`），用于跨用户权限校验用例 |
+
+**多用户身份隔离模式**（`test_generic_isolated.py::TestUserScoped`）：
+
+`authed_user_http` 是 `user_http`（独立 HttpClient 实例）+ `new_user`（随机注册的新用户）的组合：在独立实例上设置新用户 token，不影响 session 级 `logged_in_http`。用例拿到时已带好 `Authorization` header，可直接发请求；用例结束后 `user_http` 被销毁，header 随之消失，零残留。
+
+```python
+@allure.story("跨用户权限隔离")
+def test_user_http_cannot_see_others_order(
+    self, authed_user_http, fresh_order
+):
+    """新用户访问 default 用户的订单，应返回 404。
+    authed_user_http 自带新用户 token（由 new_user 提供），
+    fresh_order 由 default 用户创建，两者身份天然不同。"""
+    resp = authed_user_http.get(f"/api/orders/{fresh_order}")
+    assert resp.status_code == 404
+```
+
+这种模式天然避免了"shared HttpClient 实例导致 token 污染"的并发隐患，是测试多用户权限隔离场景的标准写法。
 
 ## 运行测试
 
@@ -360,8 +468,11 @@ pytest --reruns 3 --reruns-delay 5
 # 指定环境
 pytest --env=dev
 
+# 清空 allure-results 后重新跑（避免旧报告残留）
+pytest --clean-alluredir
+
 # 组合使用
-pytest -m smoke -n 4 --reruns 2 --env=dev -v
+pytest -m smoke -n 4 --reruns 2 --reruns-delay 1 --env=dev --clean-alluredir -v
 ```
 
 ## Allure 报告
@@ -380,18 +491,24 @@ allure serve reports/allure-results
 报告包含：
 
 - **Epic → Feature → Story** 三级业务视图
-- 每条用例的请求/响应 JSON 附件
+- 每条用例的请求/响应 JSON 附件（敏感字段已脱敏：password/token/authorization 自动替换为 `***`）
 - 失败用例的断言堆栈 + 日志
+- environment.properties（环境参数）+ executor.json（Jenkins 构建信息）
 - 趋势图（需配置 history）
+
+> **敏感字段脱敏**：`common/sanitize.py` 在 `HttpClient` 写日志/Allure 附件前递归脱敏，覆盖 `password / token / authorization / secret / access_token / db_password / refresh_token` 等键名。`Authorization` header 显示为 `Bearer ***`。报告和日志都不会泄露真实凭证。
 
 ## Jenkins 集成
 
 ### 前置条件
 
-1. Jenkins 安装插件：Allure Jenkins Plugin、Git Plugin、Pipeline、Email Extension
-2. Jenkins 服务器上有 Python 3.9+ 环境
+1. Jenkins 安装插件：Allure Jenkins Plugin、Git Plugin、Pipeline、Email Extension、HTTP Request Plugin、Build User Vars
+2. Jenkins 服务器上有 Python 3.9+ 环境（路径在 `Jenkinsfile` 的 `environment.PYTHON_PATH` 中配置）
 3. Allure Commandline 已配置（Manage Jenkins → Tools）
 4. MySQL 已安装并执行过 `init.sql`
+5. **创建 Jenkins 凭证**（避免硬编码敏感信息）：
+   - 类型 `Secret text`，ID 填 `dingtalk_webhook`，Secret 粘贴钉钉机器人 Webhook 完整 URL
+   - （可选）类型 `Username with password`，ID 填入 `environment.GIT_CREDENTIALS_ID` 用作私有仓库 Git 拉取
 
 ### Pipeline 参数
 
@@ -400,7 +517,33 @@ allure serve reports/allure-results
 | `ENV` | 运行环境 | `dev` |
 | `MARK` | 用例标记 | `all` |
 | `RERUNS` | 失败重试次数 | `3` |
-| `PARALLEL` | 并发模式 | `off` |
+| `RERUNS_DELAY` | 失败重试间隔（秒） | `1` |
+| `PARALLEL` | 并发模式（off/auto/2/3/4/5/10） | `off` |
+
+### Pipeline 阶段结构
+
+`Jenkinsfile` 分四个主阶段，每个主阶段下含子阶段：
+
+| 阶段 | 子阶段 | 说明 |
+|------|--------|------|
+| **1. 信息采集 & 准备** | 1.1 清理工作区 | 删除 `__pycache__` / `.pytest_cache` / 旧报告 / 旧日志 / `diagnostics` |
+| | 1.2 获取构建用户 | 通过 Build User Vars 插件拿到触发者 ID |
+| | 1.3 拉取代码 | `git` 步骤（retry 3 次应对网络抖动） |
+| | 1.4 安装 Python 依赖 | `pip install -r requirements.txt`（retry 3 次 + 10 分钟超时） |
+| **2. Mock 与数据重置** | 2.1 启动 Mock 服务 | 调 `ensure_mock.py start` + `status` 健康检查（最多等 30 秒） |
+| | 2.2 重置测试数据 | 调 `ensure_mock.py reset-db` 清空业务表（**失败即 `error` 终止流水线，拒绝在脏数据上跑测试**） |
+| **3. 执行测试 & 写环境信息** | 3.1 执行 Pytest 测试 | 按 `MARK` / `PARALLEL` / `RERUNS` 拼接命令，`catchError` 包裹保证失败不中断报告生成 |
+| | 3.2 写入 Allure 环境 & 执行器信息 | 写 `environment.properties` + `executor.json` |
+| **4. 生成 Allure 报告** | — | `allure` 步骤（`reportBuildPolicy: 'ALWAYS'` 总是生成） |
+| **post** | always | 停止 Mock + 归档 `logs/*.log` + 打印构建耗时大盘点 |
+| | success | 发送成功通知 |
+| | failure | 收集 `diagnostics/`（`db-status` 快照 + 日志）+ 归档 + 发送失败通知 |
+
+> **dev 环境专有逻辑**：阶段 2 全程只在 `ENV == 'dev'` 时执行；`post.always` 中停止 Mock 也只针对 dev。prod 环境跳过所有 Mock 操作，直接进入阶段 3 跑接口测试。
+
+> **统一 Python 命令封装**：所有 Python 调用走 `pythonCmd(pyArgs, extraArgs)` 辅助函数，自动加 `chcp 65001`（中文不乱码）+ 拼接 `PYTHON_PATH`，避免每个 `bat` 块重复样板代码。
+
+> **失败诊断信息**：测试失败时自动收集 `diagnostics/db_status.txt`（各业务表数据量快照）+ 复制 `logs/*.log`，归档到 Jenkins Artifacts 的 `diagnostics/` 目录，便于事后定位"是数据残留还是用例本身的问题"。
 
 ### 触发方式
 
@@ -421,10 +564,11 @@ H/5 * * * *
 
 ### 通知
 
-Pipeline 构建完成后自动发送：
+Pipeline 构建完成后通过 `notifyAll(status, color, icon)` 统一入口发送：
 
-- **邮件通知**：通过 Email Extension 插件
-- **钉钉通知**：通过钉钉机器人 Webhook
+- **邮件通知**：通过 Email Extension 插件（HTML 邮件，含构建号/状态/触发人/并发模式/重试次数/报告链接）
+- **钉钉通知**：通过钉钉机器人 Webhook（Markdown 格式，含与邮件相同的关键信息 + 报告链接）
+- 钉钉 Webhook URL 走 Jenkins Credentials（ID: `dingtalk_webhook`），不硬编码在 Jenkinsfile 中
 
 ## 进阶功能
 
@@ -463,7 +607,7 @@ pytest --reruns 3 --reruns-delay 5
 
 ```ini
 # pytest.ini 全局配置（当前已启用）
-addopts = --reruns 2 --reruns-delay 3
+addopts = --reruns 2 --reruns-delay 1
 ```
 
 ```python
@@ -483,20 +627,23 @@ pytest -n 4       # 指定 worker 数
 ```
 
 并发模式下：
-- `logged_in_http` fixture 每个 worker 各自登录一次
-- 数据工厂 fixture 为每条用例创建独立数据
-- Mock 服务使用连接池 + 多线程，支持并发访问
+- `logged_in_http` fixture 每个 worker 各自登录一次（session 级 + xdist 隔离）
+- `user_http / new_user / authed_user_http` 每条用例独立实例 + 随机用户名，多 worker 互不冲突
+- 数据工厂 fixture（`fresh_order` 等）为每条用例创建独立数据
+- Mock 服务使用共享连接池（`common/db_pool.py`，`maxconnections=20`）+ 多线程，支持并发访问；token 存储、故障计数器均使用线程锁
 
-> **注意**：并发模式下数据库连接数会随 worker 数增加，确保 MySQL 的 `max_connections` 足够（默认 151，一般够用）。
+> **注意**：并发模式下数据库连接数会随 worker 数增加（每个 worker 独立连接池），确保 MySQL 的 `max_connections` 足够（默认 151，一般够用）。
 
 ### Mock 服务故障注入
 
-`mock_flask.py` 内置了故障注入机制（`FAULT_COUNT=2`），登录接口前 2 次错误请求会返回 500 而非 401，用于模拟服务临时故障场景。
+`mock_flask.py` 内置了故障注入机制（`FAULT_COUNT=2`），登录接口在**密码错误**时，前 2 次返回 500 而非 401，用于模拟服务临时故障场景。
+
+故障计数器**按用户名隔离**（`_fault_counters` dict + `_fault_lock` 线程锁），多 worker 并发请求不同用户互不干扰，不会出现"全局计数器被其他 worker 消耗掉"的问题。
 
 这意味着：
-- **LOGIN_002（密码错误）** 用例会先触发 500，靠 `--reruns` 重试后才拿到 401 通过
+- **LOGIN_002（密码错误）** 用例会先触发 2 次 500，靠 `--reruns` 重试后才拿到 401 通过
 - 这是预期行为，验证了框架的重试机制在服务抖动时仍能正常工作
-- 如果要测试纯业务逻辑（不关心故障注入），可以将 `FAULT_COUNT` 设为 `0`
+- 如果要测试纯业务逻辑（不关心故障注入），可以将 `mock_flask.py` 中的 `FAULT_COUNT` 改为 `0`
 
 ## 数据库表结构
 
@@ -572,7 +719,7 @@ System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "")
 
 **Q: pytest 有用例失败导致 Pipeline 中断？**
 
-Pipeline 中已用 `catchError` 包裹测试阶段，保证报告阶段继续执行。
+Pipeline 中已用 `catchError` 包裹测试阶段（stage 3.1），保证报告阶段继续执行。
 
 **Q: 如何切换测试环境？**
 
@@ -581,6 +728,49 @@ pytest --env=prod
 ```
 
 对应 `config/config.yaml` 中的 `env.prod` 配置。数据库和 HTTP 客户端都会跟随切换。
+
+**Q: `ensure_mock.py` 怎么用？为什么 Jenkins 不直接 `python mock_flask.py`？**
+
+`ensure_mock.py` 托管了 Mock 服务的完整生命周期：start / status / stop / reset-db / db-status。直接 `python mock_flask.py` 是前台进程，Jenkins 构建结束时会被 Windows JobObject 自动 kill，且没有 PID 文件管理、没有健康检查、没有数据重置兜底。Jenkinsfile 用 `ensure_mock.py` 实现了：
+
+- **start** — 已在跑就跳过；没在跑就后台启动 + 写 PID 文件 + 探测就绪（最多 30 秒）
+- **status** — 健康检查（探测 `/` 端点 + 检查 PID 进程是否存活）
+- **stop** — 按 PID 文件 kill；PID 失效则按端口占用兜底清理
+- **reset-db** — 跑测试前清空业务表残留（`tasks / file_uploads / orders / projects`，保留 `users` 种子数据）；**失败即终止流水线**，拒绝在脏数据上跑测试
+- **db-status** — 失败时打印各表数据量快照到 `diagnostics/db_status.txt`
+
+**Q: 数据库业务表数据为什么会越积越多？**
+
+正常情况下 fixture teardown 会清理自己造的数据。但有两种情况会残留：
+
+1. **构建被中断** — teardown 来不及执行，`fresh_order` / `fresh_upload_token` 等创建的数据留在表里
+2. **fixture 缺 teardown** — 历史版本部分 fixture（如 `fresh_upload_token`）曾经没有清理逻辑，现在已修复
+
+Jenkinsfile stage 2.2 在每次跑测试前调 `ensure_mock.py reset-db` 兜底清空，确保每次构建都从干净状态开始。手动清理用：
+
+```bash
+python scripts/ensure_mock.py reset-db --env dev
+python scripts/ensure_mock.py db-status --env dev   # 查看清理后状态
+```
+
+**Q: Windows CMD 下 `python -c "..."` 多行命令报语法错误？**
+
+Windows CMD 会把 `python -c` 后的参数按空格拆成多条命令。解决办法：用双引号包裹整段代码，且写在一行（用 `;` 分隔）。Jenkinsfile 中提供了 `pythonCmd(pyArgs, extraArgs)` 辅助函数统一处理 `chcp 65001` 编码 + `PYTHON_PATH` 拼接，避免每次手写样板。
+
+**Q: 钉钉通知发送失败？**
+
+检查三件事：
+1. Jenkins 后台是否已创建 ID 为 `dingtalk_webhook` 的 Secret text 凭证（值为钉钉机器人完整 Webhook URL）
+2. 钉钉机器人是否设置了安全关键词（Jenkinsfile 中默认关键词为 `测试`，见 `environment.DINGTALK_KEYWORD`）
+3. Jenkins 是否安装了 HTTP Request Plugin（用于发 HTTP 请求到钉钉 Webhook）
+
+**Q: 怎么在 Jenkins 失败时排查是数据残留还是用例本身的问题？**
+
+打开该次构建的 Artifacts → `diagnostics/` 目录：
+- `db_status.txt` — 各业务表数据量快照（失败现场）
+- `*.log` — 复制过来的 pytest / mock 日志
+
+如果 `orders / projects / tasks / file_uploads` 任一表数据量异常大，多半是上一次构建中断导致的数据残留；下次构建的 stage 2.2 会自动清空。
 
 ## License
 

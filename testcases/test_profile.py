@@ -38,13 +38,28 @@ class TestProfile:
     # ==================== 更新头像 ====================
 
     @allure.story("更新头像")
-    def test_update_avatar(self, logged_in_http, fresh_upload_token):
-        """正向：使用自己的有效 file_key 更新头像"""
-        resp = logged_in_http.put("/api/users/me/avatar", json={
-            "file_key": fresh_upload_token
-        })
-        assert resp.status_code == 200
-        assert resp.json()["data"]["avatar"] == fresh_upload_token
+    def test_update_avatar(self, logged_in_http, fresh_upload_token, db):
+        """正向：使用自己的有效 file_key 更新头像
+
+        ★ 该用例会修改 default 用户的 avatar 字段，必须用 try-finally 恢复，
+          避免污染后续依赖 default 用户 avatar 初始状态的用例。
+        """
+        uid = logged_in_http._user_id
+        old_avatar = db.query_one(
+            "SELECT avatar FROM users WHERE user_id = %s", (uid,)
+        )["avatar"]
+        try:
+            resp = logged_in_http.put("/api/users/me/avatar", json={
+                "file_key": fresh_upload_token
+            })
+            assert resp.status_code == 200
+            assert resp.json()["data"]["avatar"] == fresh_upload_token
+        finally:
+            # 恢复 default 用户 avatar，避免污染其他用例
+            db.execute(
+                "UPDATE users SET avatar = %s WHERE user_id = %s",
+                (old_avatar, uid)
+            )
 
     @allure.story("更新头像")
     def test_update_avatar_invalid_key(self, logged_in_http):

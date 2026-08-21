@@ -75,12 +75,10 @@ def assert_response(resp, expect, db=None, context=None):
         with allure.step(
             f"DB校验: {check['table']}.{check['field']} == {check['expected']}"
         ):
-            where = resolve_template(check["where"], context)
+            # 递归解析模板变量，支持嵌套 list / dict / str 中的 ${...}
+            where = resolve_value(check["where"], context)
             params = tuple(
-                resolve_template(item, context)
-                if isinstance(item, str) and item.startswith("${")
-                else item
-                for item in check["params"]
+                resolve_value(item, context) for item in check["params"]
             )
             db.assert_field_value(
                 check["table"], where, params,
