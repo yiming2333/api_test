@@ -559,6 +559,31 @@ def update_task(project_id, task_id):
 
 
 # ============================================================
+#  健康检查（供 Jenkins/ensure_mock 探测服务是否就绪）
+# ============================================================
+@app.route('/api/ping', methods=['GET'])
+def api_ping():
+    """轻量健康检查：返回服务状态+DB连通性（不做重操作，避免影响探测性能）。"""
+    db_ok = True
+    try:
+        conn = POOL.connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        cur.close()
+        conn.close()
+    except Exception:
+        db_ok = False
+    status = "ok" if db_ok else "db_error"
+    return jsonify({
+        "code": 0,
+        "status": status,
+        "service": "mock_api",
+        "port": 5000
+    }), 200
+
+
+# ============================================================
 #  首页
 # ============================================================
 @app.route('/', methods=['GET'])

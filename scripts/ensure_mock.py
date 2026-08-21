@@ -284,6 +284,46 @@ def cmd_reset_db(env_name):
             conn.close()
 
 
+def cmd_db_status(env_name):
+    """打印数据库各业务表的数据量（不清空，用于 Jenkins 失败时诊断现场）。"""
+    if env_name != "dev":
+        print(f"[ensure_mock] env={env_name}，跳过 DB 状态检查")
+        return 0
+
+    try:
+        from common.db_pool import get_pool
+    except Exception as exc:
+        print(f"[ensure_mock] ❌ 无法导入 db_pool: {exc}", file=sys.stderr)
+        return 1
+
+    pool = get_pool(env=env_name, database="api_test", autocommit=True)
+    tables = ["users", "projects", "orders", "tasks", "file_uploads"]
+
+    conn = None
+    try:
+        conn = pool.connection()
+        print(f"[ensure_mock] 📊 DB 数据表现状（env={env_name}）：")
+        with conn.cursor() as cur:
+            total = 0
+            for table in tables:
+                cur.execute(f"SELECT COUNT(*) AS c FROM {table}")
+                cnt = cur.fetchone()["c"]
+                total += cnt
+                flag = "⚠️" if table != "users" and cnt > 0 else "  "
+                print(f"  {flag} {table:14s} : {cnt} 条")
+            print(f"  ----------------------------------------")
+            print(f"  🔢 业务表总记录数（不含users）: {total}")
+            if total > 0:
+                print(f"  ⚠️  存在残留数据！可能是上一次流水线中断导致的")
+        return 0
+    except Exception as exc:
+        print(f"[ensure_mock] ❌ DB 状态查询失败: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if conn:
+            conn.close()
+
+
 # ============================================================
 #  入口
 # ============================================================
@@ -292,8 +332,8 @@ def main():
     parser = argparse.ArgumentParser(description="确保 Mock API 服务可用")
     parser.add_argument(
         "action", nargs="?", default="start",
-        choices=["start", "stop", "status", "reset-db"],
-        help="start=确保启动(默认) / stop=停止 / status=检查状态 / reset-db=清空业务表",
+        choices=["start", "stop", "status", "reset-db", "db-status"],
+        help="start=确保启动(默认) / stop=停止 / status=检查状态 / reset-db=清空业务表 / db-status=打印各表数据量",
     )
     parser.add_argument("--env", default="dev", help="运行环境 dev/prod")
     args = parser.parse_args()
@@ -306,6 +346,8 @@ def main():
         return cmd_status(args.env)
     if args.action == "reset-db":
         return cmd_reset_db(args.env)
+    if args.action == "db-status":
+        return cmd_db_status(args.env)
     return 0
 
 
