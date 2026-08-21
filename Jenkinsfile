@@ -139,26 +139,18 @@ pipeline {
                         echo "探测 Mock 服务，未运行则自动启动..."
                         bat script: pythonCmd('scripts/ensure_mock.py', "start --env ${params.ENV}")
 
-                        // P1 优化(6)：健康检查 —— 确认 Mock 真的"活了"再往下走，防止测试抢跑
-                        echo "⏳ 等待 Mock 服务就绪（健康检查 /api/ping，最多30秒）..."
+                        // P1 优化(6)：健康检查 —— 复用 ensure_mock status（exit 0=Mock在跑），确认 Mock 真的"活了"再往下走
+                        echo "⏳ 等待 Mock 服务就绪（探测 127.0.0.1:5000，最多30秒）..."
                         script {
                             timeout(time: 30, unit: 'SECONDS') {
-                                waitUntil(recursive: false, initialRecurrencePeriod: 2000) {
+                                waitUntil(initialRecurrencePeriod: 2000) {
                                     def pingOk = bat(
-                                        script: pythonCmd('-c', """
-import sys
-try:
-    import requests
-    r = requests.get('http://127.0.0.1:5000/api/ping', timeout=2)
-    sys.exit(0 if r.status_code == 200 else 1)
-except Exception:
-    sys.exit(1)
-"""),
+                                        script: pythonCmd('scripts/ensure_mock.py', "status --env ${params.ENV}"),
                                         returnStatus: true
                                     )
                                     return pingOk == 0
                                 }
-                                echo "✅ Mock 服务健康检查通过（端口 5000，DB 连通）"
+                                echo "✅ Mock 服务就绪（端口 5000 正常响应）"
                             }
                         }
                     }
@@ -329,16 +321,10 @@ except Exception:
                 catchError(buildResult: null, stageResult: null, message: "诊断信息收集失败，跳过") {
                     echo "📦 收集失败现场诊断信息..."
                     bat script: 'if not exist "diagnostics" mkdir diagnostics'
-                    // 1) 抓 DB 当前数据量快照
+                    // 1) 抓 DB 当前数据量快照：先打印到日志（方便直接看），再用bat重定向写入归档文件
                     if (params.ENV == 'dev') {
                         bat script: pythonCmd('scripts/ensure_mock.py', "db-status --env ${params.ENV}")
-                        bat script: pythonCmd('-c', """
-import subprocess, os
-r = subprocess.run([r'${env.PYTHON_PATH.replace('/', '\\\\')}', 'scripts/ensure_mock.py', 'db-status', '--env', '${params.ENV}'], capture_output=True, text=True)
-with open('diagnostics/db_status.txt', 'w', encoding='utf-8') as f:
-    f.write(r.stdout)
-    if r.stderr: f.write('\\\\n---STDERR---\\\\n' + r.stderr)
-""")
+                        bat script: pythonCmd('scripts/ensure_mock.py', "db-status --env ${params.ENV} > diagnostics\\db_status.txt 2>&1")
                     }
                     // 2) 复制 mock 日志 + pytest 日志
                     bat '''
