@@ -36,15 +36,16 @@ api_test/
 │   ├── test_login.py           # 登录模块（YAML 数据驱动）
 │   ├── test_order.py           # 订单模块（DB 校验）
 │   ├── test_profile.py         # 个人信息模块（含跨用户安全校验）
+│   ├── test_register.py        # 注册模块（正向/幂等/异常参数）
 │   ├── test_project_task.py    # 项目与任务模块（级联删除）
-│   ├── test_file_upload.py     # 文件上传模块
+│   ├── test_file_upload.py     # 文件上传模块（含跨用户 commit 安全校验）
 │   └── test_generic_isolated.py # 隔离数据驱动用例 + 多用户身份隔离
 ├── utils/                      # 工具类
 │   ├── data_loader.py          # 测试数据加载器（自动 mark 映射）
 │   ├── case_runner.py          # YAML 用例执行引擎（模板解析/setup/teardown）
-│   ├── jsonpath_util.py        # 简易 JSONPath 提取
+│   ├── jsonpath_util.py        # JSONPath 提取（基于 jsonpath-ng，支持完整语法）
 │   ├── accounts.py             # 测试账号加载（lru_cache）
-│   └── db.py                   # 数据库操作客户端（基于共享连接池）
+│   └── db.py                   # 数据库操作客户端（基于共享连接池，含标识符白名单校验）
 ├── scripts/
 │   └── ensure_mock.py          # Mock 生命周期管理（start/stop/status/reset-db/db-status）
 ├── mock_flask.py               # Mock API 服务（多线程 + 线程锁并发安全）
@@ -70,6 +71,7 @@ api_test/
 | PyMySQL | 数据库校验 |
 | Flask | Mock API 服务 |
 | DBUtils | 数据库连接池 |
+| jsonpath-ng | JSONPath 断言（支持通配符/过滤器/递归下降） |
 
 ## 快速开始
 
@@ -399,8 +401,12 @@ def test_order_flow(self, logged_in_http, db, case_id, case_data):
 
 - 普通值 → 严格相等（`==`）
 - `"not_null"` → 仅校验非 None（适合 token 等动态字段）
+- 路径语法基于 [jsonpath-ng](https://github.com/h2non/jsonpath-ng)，除 `$.a.b.c` / `$.list[0].name` 外，还支持：
+  - `$.list[*].name` — 数组通配符
+  - `$..key` — 递归下降
+  - `$[?(@.status=='ok')]` — 过滤器表达式
 
-**`expect.db_check` 数据库断言**：列表，每项含 `table / where / params / field / expected` 五个键，参数走 `%s` 占位符防注入。
+**`expect.db_check` 数据库断言**：列表，每项含 `table / where / params / field / expected` 五个键，参数走 `%s` 占位符防注入。`table` 和 `field` 在 `DBClient` 入口处走正则白名单校验（仅允许字母数字下划线），避免拼接到 SQL 时被注入。`where` / `params` 中的 `${...}` 模板变量会被 `resolve_value` 递归解析，支持嵌套 list / dict。
 
 ### 隔离数据工厂 & 用户身份隔离
 
@@ -447,6 +453,10 @@ def test_user_http_cannot_see_others_order(
 ```
 
 这种模式天然避免了"shared HttpClient 实例导致 token 污染"的并发隐患，是测试多用户权限隔离场景的标准写法。
+
+> **注册接口用例**（`testcases/test_register.py`）：因为 `new_user` fixture 是已注册完成的状态，不能用于测试 `POST /api/auth/register` 本身，所以这个文件用 `user_http` + 随机用户名 + `db.execute` 直连清理的方式自包含测试 register 的正向 / 幂等 / 缺参数 / 空 body 行为。
+
+> **跨用户 commit 安全校验**（`test_file_upload.py::test_commit_cross_user_forbidden`）：用 `authed_user_http`（新用户身份）提交 `fresh_upload_token`（default 用户创建的 file_key），断言 Mock 的 `commit_file` 通过 `user_id` 归属校验返回 400。这是 commit 接口的核心安全用例。
 
 ## 运行测试
 
@@ -596,6 +606,8 @@ db.assert_field_value(
 db.assert_record_exists("orders", "order_id = %s", ("ORD001",))
 ```
 
+> **SQL 注入防护**：`count` / `assert_field_value` 等接收外部 `table` / `field` 的方法会在执行前通过 `_validate_identifier` 正则校验（仅允许 `[A-Za-z_][A-Za-z0-9_]*`），不合法直接 `ValueError` 拒绝。`query` / `execute` / `query_one` 中的 `cursor.execute` 包了 try-except，异常会经 `log.error` 落盘后再向上抛，保证 Jenkins 失败归档日志完整。
+
 ### 失败重试
 
 三种粒度，优先级：**装饰器 > 命令行 > ini 配置**
@@ -644,6 +656,8 @@ pytest -n 4       # 指定 worker 数
 - **LOGIN_002（密码错误）** 用例会先触发 2 次 500，靠 `--reruns` 重试后才拿到 401 通过
 - 这是预期行为，验证了框架的重试机制在服务抖动时仍能正常工作
 - 如果要测试纯业务逻辑（不关心故障注入），可以将 `mock_flask.py` 中的 `FAULT_COUNT` 改为 `0`
+
+> **Mock 服务日志**：`mock_flask.py` 复用 `common.logger`（与 pytest 同一 logger），故障注入触发记 `log.warning`，登录失败记 `log.info`，`/api/ping` DB 健康检查异常记 `log.error`，启动时打印一行 `log.info`。所有日志会落到 `logs/{当天日期}.log`，Jenkins `post.always` 会自动归档，便于事后定位。
 
 ## 数据库表结构
 
